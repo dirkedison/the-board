@@ -1,0 +1,10 @@
+{
+  "name": "the-board",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "encrypt": "node tools/encrypt.mjs",
+    "decrypt": "node tools/decrypt.mjs",
+    "serve": "npx --yes http-server -c-1 -p 8080 ."
+  }
+}
