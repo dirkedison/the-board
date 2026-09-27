@@ -25,8 +25,9 @@ const $ = (sel, root = document) => root.querySelector(sel);
 
 export const pcolor = (id) => `var(--p-${id})`;
 export const player = (id) => state.league.players.find((p) => p.id === id);
-export const ink = (id) => `<b class="ink" style="color:${pcolor(id)}" title="${h(player(id)?.name)}">${h(id)}</b>`;
-export const chip = (id, cls = '') => `<span class="chip ${cls}" style="background:${pcolor(id)}" title="${h(player(id)?.name)}">${h(id)}</span>`;
+export const ink = (id) => `<b class="ink" data-player="${h(id)}" style="color:${pcolor(id)}" title="${h(player(id)?.name)}">${h(id)}</b>`;
+export const chip = (id, cls = '') => `<span class="chip ${cls}" data-player="${h(id)}" style="background:${pcolor(id)}" title="${h(player(id)?.name)}">${h(id)}</span>`;
+const nameLink = (id) => `<a class="name-link" href="#/player/${h(id)}">${h(player(id)?.name)}</a>`;
 const signed = (n, d = 1) => (n == null ? '—' : (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n).toFixed(d).replace(/\.0$/, ''));
 const pct0 = (x) => (x == null ? '—' : Math.round(x * 100) + '%');
 
@@ -190,13 +191,13 @@ function weekNumbers() {
 // ---------- routing ----------
 function route() {
   const parts = location.hash.replace(/^#\/?/, '').split('/');
-  return { view: parts[0] || 'board', arg: parts[1] };
+  return { view: parts[0] || 'standings', arg: parts[1] };
 }
 
 export function render() {
   if (!state.league) return;
   const { view, arg } = route();
-  document.querySelectorAll('.tabbar a').forEach((a) => a.classList.toggle('active', a.dataset.view === view || (view === 'player' && a.dataset.view === 'standings')));
+  document.querySelectorAll('.tabbar a').forEach((a) => a.classList.toggle('active', a.dataset.view === view || (view === 'player' && a.dataset.view === 'players')));
   const main = $('#view');
   const scrollKey = view + (arg || '');
   if (main.dataset.key !== scrollKey) window.scrollTo(0, 0);
@@ -204,8 +205,10 @@ export function render() {
   if (view === 'standings') main.innerHTML = viewStandings();
   else if (view === 'stats') { main.innerHTML = viewStats(); mountStatsCharts(); }
   else if (view === 'player' && player(arg)) { main.innerHTML = viewPlayer(arg); mountPlayerChart(arg); }
+  else if (view === 'players') main.innerHTML = viewPlayers();
   else if (view === 'admin') renderAdmin(main);
-  else main.innerHTML = viewBoard(Number(arg) || null);
+  else if (view === 'board') main.innerHTML = viewBoard(Number(arg) || null);
+  else main.innerHTML = viewStandings();
 }
 
 // ---------- BOARD ----------
@@ -321,7 +324,7 @@ function viewStandings() {
       <h3>Week by week</h3>
       <div class="table-wrap"><table class="grid-table">
         <thead><tr><th></th>${weeks.map((w) => `<th><a href="#/board/${w}">W${w}</a></th>`).join('')}<th>Total</th></tr></thead>
-        <tbody>${rows.map((r) => `<tr><th>${chip(r.player.id, 'sm')} ${h(r.player.name)}</th>${weeks.map((w) => {
+        <tbody>${rows.map((r) => `<tr><th>${chip(r.player.id, 'sm')} ${nameLink(r.player.id)}</th>${weeks.map((w) => {
           const x = r.byWeek[w];
           return `<td style="${pctTint(x.pct, x.W + x.L)}">${x.W + x.L + x.P ? core.fmtRecord(x) : '—'}</td>`;
         }).join('')}<td class="strong">${core.fmtRecord(r)}</td></tr>`).join('')}</tbody>
@@ -401,7 +404,7 @@ function viewStats() {
         <thead><tr><th></th><th>Lone wolf %</th><th>Lone wolf</th><th>With herd</th></tr></thead>
         <tbody>${ps.map((p) => {
           const t = a.perPlayer[p.id];
-          return `<tr><th>${chip(p.id, 'sm')} ${h(p.name)}</th><td>${pct0(t.loneShare)}</td>${recCell(t.lone)}${recCell(t.herd)}</tr>`;
+          return `<tr><th>${chip(p.id, 'sm')} ${nameLink(p.id)}</th><td>${pct0(t.loneShare)}</td>${recCell(t.lone)}${recCell(t.herd)}</tr>`;
         }).join('')}</tbody>
       </table></div>
     </section>
@@ -462,6 +465,60 @@ function setFocus(id) {
   mountStatsCharts();
 }
 
+// ---------- PLAYERS ----------
+function bioBlock(p) {
+  const team = p.team && TEAMS[p.team] ? `<span class="fan-of">Roots for the <b class="marker">${h(teamName(p.team))}</b></span>` : '';
+  const bio = p.bio ? `<p class="bio">${h(p.bio)}</p>` : '';
+  return bio || team ? `<div class="bio-block">${bio}${team}</div>` : '';
+}
+
+// Auto-generated personality tags from pick history.
+function scoutingTags(a, id) {
+  const t = a.perPlayer[id];
+  const row = a.standings.find((r) => r.player.id === id);
+  const tags = [];
+  const n = t.picks.length;
+  if (row.rank === 1) tags.push('👑 Top of the board');
+  if (row.streak && /^W[3-9]/.test(row.streak)) tags.push(`🔥 On fire (${row.streak})`);
+  if (row.streak && /^L[3-9]/.test(row.streak)) tags.push(`🧊 Ice cold (${row.streak})`);
+  if (n >= 4 && t.favPct != null && t.favPct >= 0.65) tags.push('Chalk eater');
+  if (n >= 4 && t.favPct != null && t.favPct <= 0.35) tags.push('Dog lover');
+  if (n >= 4 && t.homePct >= 0.7) tags.push('Homebody');
+  if (n >= 4 && t.homePct <= 0.3) tags.push('Road warrior');
+  if (n >= 4 && t.loneShare >= 0.3) tags.push('Lone wolf');
+  if (n >= 4 && t.loneShare <= 0.1) tags.push('Runs with the herd');
+  const slots = Object.entries(t.bySlot).filter(([, r]) => r.W + r.L >= 2);
+  const best = slots.filter(([, r]) => r.pct === 1).sort((x, y) => y[1].W - x[1].W)[0];
+  const worst = slots.filter(([, r]) => r.pct === 0).sort((x, y) => y[1].L - x[1].L)[0];
+  if (best) tags.push(`Owns ${best[0]}`);
+  if (worst) tags.push(`Cursed on ${worst[0]}`);
+  if (t.favTeam && t.favTeam.count >= 3) tags.push(`Rides the ${teamName(t.favTeam.team)}`);
+  if (t.badBeats >= 2) tags.push('Bad-beat magnet');
+  return tags.slice(0, 5);
+}
+
+function viewPlayers() {
+  const a = analyze(state.league);
+  lastAnalysis = a;
+  const tl = a.timeline;
+  return `<header class="view-head"><h1 class="marker">Players</h1><p class="sub">Tap anyone for the full scouting report.</p></header>
+    <div class="player-grid">
+      ${a.standings.map((r) => {
+        const p = r.player;
+        return `<a class="pl-card" href="#/player/${p.id}" style="--pc:${pcolor(p.id)}">
+          <div class="pl-top">
+            <span class="pl-chip" style="background:var(--pc)">${h(p.id)}</span>
+            <div class="pl-id"><span class="marker pl-name" style="color:var(--pc)">${h(p.name)}</span>
+              <small>#${r.rank} · ${core.fmtRecord(r)}${r.pct != null ? ' · ' + core.fmtPct(r.pct) : ''}</small></div>
+            ${sparkline(netSeries(tl, p.id), 'var(--pc)', 80, 30)}
+          </div>
+          ${bioBlock(p)}
+          <div class="tags">${scoutingTags(a, p.id).map((t) => `<span class="tag">${h(t)}</span>`).join('')}</div>
+        </a>`;
+      }).join('')}
+    </div>`;
+}
+
 // ---------- PLAYER ----------
 function viewPlayer(id) {
   const a = analyze(state.league);
@@ -475,9 +532,11 @@ function viewPlayer(id) {
   const others = state.league.players.filter((o) => o.id !== id);
   const twin = others.map((o) => ({ o, x: a.agree[id][o.id] })).filter((z) => z.x).sort((x, y) => y.x.pct - x.x.pct)[0];
   return `<header class="view-head player-head" style="--pc:${pcolor(id)}">
-      <a href="#/standings" class="back">‹ Standings</a>
+      <a href="#/players" class="back" data-back>‹ Back</a>
       <h1 class="marker" style="color:var(--pc)">${h(p.name)} <span class="big-chip">${chip(id)}</span></h1>
       <p class="sub">#${row.rank} · ${core.fmtRecord(row)} · ${core.fmtPct(row.pct)}${row.streak ? ` · streak <span class="streak ${row.streak[0]}">${row.streak}</span>` : ''}</p>
+      ${bioBlock(p)}
+      <div class="tags">${scoutingTags(a, id).map((t) => `<span class="tag">${h(t)}</span>`).join('')}</div>
     </header>
     <div class="tiles">
       <div class="tile"><span class="tile-num">${pct0(t.favPct)}</span><span class="tile-label">on favorites</span></div>
@@ -533,13 +592,20 @@ function mountPlayerChart(id) {
 
 // ---------- events ----------
 document.addEventListener('click', (e) => {
+  const back = e.target.closest('[data-back]');
+  if (back && sessionStorage.getItem('theboard.nav') === '1') { e.preventDefault(); history.back(); return; }
+  const mark = e.target.closest('[data-player]');
+  if (mark && !mark.closest('a, button, [data-focus]') && location.hash.indexOf('#/admin') !== 0) {
+    location.hash = '#/player/' + mark.dataset.player;
+    return;
+  }
   const f = e.target.closest('[data-focus]');
   if (f) setFocus(f.dataset.focus);
 });
 document.addEventListener('change', (e) => {
   if (e.target.id === 'picked-only') { store.set('theboard.pickedOnly', e.target.checked); render(); }
 });
-window.addEventListener('hashchange', render);
+window.addEventListener('hashchange', () => { try { sessionStorage.setItem('theboard.nav', '1'); } catch { /* ignore */ } render(); });
 let resizeT;
 window.addEventListener('resize', () => {
   clearTimeout(resizeT);

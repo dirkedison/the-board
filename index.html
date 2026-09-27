@@ -36,7 +36,7 @@
 
   <div id="app-shell" hidden>
     <header class="topbar">
-      <a href="#/board" class="logo small">THE BOARD</a>
+      <a href="#/standings" class="logo small">THE BOARD</a>
       <div class="top-actions">
         <button id="refresh-btn" class="icon-btn" title="Refresh scores" aria-label="Refresh scores">
           <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg></button>
@@ -51,8 +51,9 @@
     <main id="view"></main>
     <p id="sync-status" class="sync-status"></p>
     <nav class="tabbar">
-      <a href="#/board" data-view="board"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="13" rx="1.5"/><path d="M9 21h6M7 9h5M7 13h8"/></svg>Board</a>
       <a href="#/standings" data-view="standings"><svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V5M19 20v-6"/></svg>Standings</a>
+      <a href="#/board" data-view="board"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="13" rx="1.5"/><path d="M9 21h6M7 9h5M7 13h8"/></svg>Picks</a>
+      <a href="#/players" data-view="players"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c2.8.2 5 2.6 5 5.8"/></svg>Players</a>
       <a href="#/stats" data-view="stats"><svg viewBox="0 0 24 24"><path d="M3 17l5-5 4 3 8-8"/><path d="M15 7h5v5"/></svg>Stats</a>
     </nav>
   </div>

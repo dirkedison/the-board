@@ -4,7 +4,7 @@ import { state, store, h, render, replaceLeague, ink, chip, player } from './app
 import * as core from './core.js';
 import { fetchWeek } from './espn.js';
 import { deriveKey, encryptJSON, exportKey, toB64, randomBytes } from './crypto.js';
-import { teamName } from './teams.js';
+import { TEAMS, teamName } from './teams.js';
 
 const DRAFT_KEY = 'theboard.draft';
 const GH_KEY = 'theboard.github';
@@ -215,6 +215,20 @@ function draw() {
     }).join('')}` : `<p class="empty">No games for week ${A.week} yet. Load them from ESPN above.</p>`}
 
     <details class="card">
+      <summary><h3>Player bios</h3></summary>
+      <p class="hint">Shown on the Players page. Changes publish with everything else.</p>
+      <div class="bio-edit">${players.map((p) => `<div class="bio-row">
+        <span class="chip" style="background:var(--p-${p.id})">${p.id}</span>
+        <div class="bio-fields">
+          <b>${h(p.name)}</b>
+          <input data-a="bio" data-pid="${p.id}" maxlength="140" placeholder="One-liner about ${h(p.name)}" value="${h(p.bio || '')}">
+          <select data-a="pteam" data-pid="${p.id}"><option value="">Favorite team…</option>
+            ${Object.entries(TEAMS).sort((x, y) => x[1].name.localeCompare(y[1].name)).map(([code, t]) => `<option value="${code}" ${p.team === code ? 'selected' : ''}>${h(t.name)}</option>`).join('')}
+          </select>
+        </div></div>`).join('')}</div>
+    </details>
+
+    <details class="card">
       <summary><h3>Change league password</h3></summary>
       <form id="pw-form" class="form-grid">
         <label>New password<input name="pw1" type="password" autocomplete="new-password" minlength="6" required></label>
@@ -339,6 +353,14 @@ async function onChange(e) {
     draw();
     return;
   }
+  if (a === 'bio' || a === 'pteam') {
+    const p = A.draft.players.find((x) => x.id === t.dataset.pid);
+    if (a === 'bio') p.bio = t.value.trim(); else p.team = t.value || undefined;
+    touch();
+    draw();
+    keepOpen('Player bios');
+    return;
+  }
   const g = findGame(t.dataset.gid);
   if (!g) return;
   if (a === 'fav') { g.fav = t.value || null; if (!t.value) g.spread = 0; }
@@ -347,6 +369,11 @@ async function onChange(e) {
   else if (a === 'result') { if (t.value) g.result = t.value; else delete g.result; }
   touch();
   draw();
+}
+
+// Re-rendering closes <details>; reopen the one being edited.
+function keepOpen(title) {
+  root.querySelectorAll('details.card').forEach((d) => { if (d.querySelector('summary h3')?.textContent.startsWith(title)) d.open = true; });
 }
 
 function saveGh(form) {

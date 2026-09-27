@@ -8,8 +8,8 @@ Our NFL pick'em, off the whiteboard and onto everyone's phone.
 
 ## What it does
 
-- **Board.** Each week laid out like the whiteboard. Every player's letter sits next to the team they took, covers get circled and non-covers get crossed out. Scores are live, and a "sweating right now" panel shows who's covering during games.
-- **Standings.** Record, win %, games back, streaks, a sparkline per player, and a week-by-week grid.
+- **Standings** (home page). Record, win %, games back, streaks, a sparkline per player, and a week-by-week grid.
+- **Picks.** Each week laid out like the whiteboard. Every player's letter sits next to the team they took, covers get circled and non-covers get crossed out. Scores are live, and a "sweating right now" panel shows who's covering during games.
 - **Stats:**
   - the race (games over .500 after every slot) and lead changes
   - time in first place
@@ -19,6 +19,7 @@ Our NFL pick'em, off the whiteboard and onto everyone's phone.
   - "pick twins" (who picks alike)
   - a team ledger
   - biggest covers and bad beats
+- **Players.** A card per player with an auto-generated scouting report ("Chalk eater", "Owns Sun 4PM", "Ice cold"…) and an optional bio and favorite team, set under Commissioner → Player bios. Tap any name, letter, or chip anywhere on the site to open that player's page.
 - **Player pages.** Every pick with its ATS margin, plus a chart of that player against the field.
 - **Automatic grading.** Final scores come from ESPN's public scoreboard, so nobody enters results by hand.
 

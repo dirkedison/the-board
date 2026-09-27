@@ -419,3 +419,41 @@ details.card[open] > summary h3::before { transform: rotate(90deg); }
 @media (min-width: 900px) {
   .view-head h1 { font-size: 2.4rem; }
 }
+
+/* ---------- players ---------- */
+[data-player] { cursor: pointer; }
+.name-link { text-decoration: none; }
+.name-link:hover { text-decoration: underline; }
+.player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 8px; }
+.pl-card {
+  display: flex; flex-direction: column; gap: 10px; text-decoration: none;
+  background: var(--surface); border: 1px solid var(--line); border-top: 5px solid var(--pc);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px;
+}
+.pl-card:hover { border-color: var(--muted); border-top-color: var(--pc); }
+.pl-top { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+.pl-chip {
+  width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+  font-family: var(--marker); font-weight: 700; font-size: 1.6rem; text-shadow: 0 0 2px rgb(0 0 0 / .45);
+}
+.pl-id { display: flex; flex-direction: column; min-width: 0; }
+.pl-name { font-size: 1.7rem; line-height: 1.05; }
+.bio-block { display: flex; flex-direction: column; gap: 2px; }
+.bio { margin: 0; color: var(--ink-2); font-style: italic; }
+.fan-of { font-size: .85rem; color: var(--muted); }
+.fan-of .marker { color: var(--ink); font-size: 1rem; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.player-head .tags { margin-top: 8px; }
+.player-head .bio-block { margin-top: 6px; }
+.tag {
+  font-size: .76rem; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2);
+}
+.tabbar a { max-width: 110px; }
+.bio-edit { display: grid; gap: 12px; margin-top: 10px; }
+.bio-row { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
+.bio-fields { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.bio-fields input, .bio-fields select {
+  font: inherit; padding: 9px 10px; border-radius: 9px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
+}
+@media (min-width: 640px) { .bio-fields { grid-template-columns: 6em 1fr 12em; align-items: center; } }
