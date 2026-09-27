@@ -121,6 +121,7 @@ async function unlock(e) {
 }
 
 export function lock() {
+  try { sessionStorage.removeItem('theboard.authLater'); } catch { /* ignore */ }
   store.del('theboard.key');
   state.key = null; state.league = null;
   clearTimeout(state.liveTimer);
@@ -215,6 +216,40 @@ export function render() {
   else if (view === 'admin') renderAdmin(main);
   else if (view === 'board') main.innerHTML = viewBoard(Number(arg) || null);
   else main.innerHTML = viewStandings();
+  renderAuthSheet(view);
+}
+
+const authDeferred = () => { try { return sessionStorage.getItem('theboard.authLater') === '1'; } catch { return false; } };
+
+function renderAuthSheet(view) {
+  let sheet = $('#auth-sheet');
+  const show = acct.enabled && acct.ready && (!acct.user || !acct.me) && view !== 'account' && !authDeferred();
+  if (!show) {
+    if (sheet) sheet.remove();
+    document.body.classList.remove('sheet-open');
+    return;
+  }
+  // Keep typed input if the sheet is already up and nothing changed step-wise.
+  const step = !acct.user ? 'auth' : 'claim';
+  const msgKey = state.acctMsg?.text || '';
+  if (sheet && sheet.dataset.step === step && sheet.dataset.msg === msgKey) return;
+  if (!sheet) {
+    sheet = document.createElement('div');
+    sheet.id = 'auth-sheet';
+    sheet.className = 'sheet-backdrop';
+    document.body.appendChild(sheet);
+  }
+  sheet.dataset.step = step;
+  sheet.dataset.msg = msgKey;
+  sheet.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <h2 id="sheet-title" class="marker">${step === 'auth' ? 'Sign in to THE BOARD' : 'One more step'}</h2>
+    <p class="sub">${step === 'auth'
+      ? "Make an account to see the latest bios and photos, and to rewrite everyone's but your own."
+      : 'Tell us which player you are.'}</p>
+    ${authSteps()}
+    <button class="btn ghost later" data-acct="later">Not now</button>
+  </div>`;
+  document.body.classList.add('sheet-open');
 }
 
 // ---------- BOARD ----------
@@ -516,25 +551,23 @@ function editControls(p) {
 }
 
 // ---------- ACCOUNT ----------
-function viewAccount() {
+// Sign-in / create / claim steps; '' once the user has a player.
+function authSteps() {
   const msg = state.acctMsg ? `<div class="flash ${state.acctMsg.kind}">${h(state.acctMsg.text)}</div>` : '';
-  const head = `<header class="view-head"><h1 class="marker">Your account</h1>
-    <p class="sub">Accounts let you rewrite everyone's bio and photo except your own.</p></header>${msg}`;
-  if (!acct.enabled) return head + `<p class="empty">Accounts aren't switched on yet. The commissioner needs to finish the Supabase setup (see the README).</p>`;
-  if (!acct.ready) return head + `<p class="empty">Loading…</p>`;
   if (!acct.user) {
-    return head + `<section class="card">
+    return msg + `<section class="card">
       <form class="form-grid" data-form="auth">
         <label class="wide">Email<input name="email" type="email" autocomplete="email" required></label>
         <label class="wide">Password<input name="password" type="password" autocomplete="current-password" minlength="6" required></label>
         <button class="btn primary" type="submit" name="mode" value="in">Sign in</button>
         <button class="btn" type="submit" name="mode" value="up">Create account</button>
       </form>
+      <p class="hint form-note">New here? Enter any email and a password, then hit <b>Create account</b>. No confirmation email.</p>
     </section>`;
   }
   if (!acct.me) {
     const open = state.league.players.filter((p) => !acct.claimed[p.id]);
-    return head + `<section class="card">
+    return msg + `<section class="card">
       <h3>Which one are you?</h3>
       <p class="hint">Signed in as ${h(acct.user.email)}. Claim your player with the league password. Claim yourself, not somebody else; the commissioner can see who claimed what.</p>
       <form class="form-grid" data-form="claim">
@@ -546,8 +579,18 @@ function viewAccount() {
     </section>
     <button class="btn ghost" data-acct="signout">Sign out</button>`;
   }
+  return '';
+}
+
+function viewAccount() {
+  const head = `<header class="view-head"><h1 class="marker">Your account</h1>
+    <p class="sub">Accounts let you rewrite everyone's bio and photo except your own.</p></header>`;
+  if (!acct.enabled) return head + `<p class="empty">Accounts aren't switched on yet. The commissioner needs to finish the Supabase setup (see the README).</p>`;
+  if (!acct.ready) return head + `<p class="empty">Loading…</p>`;
+  const steps = authSteps();
+  if (steps) return head + steps;
   const me = player(acct.me);
-  return head + `<section class="card account-card" style="--pc:${pcolor(me.id)}">
+  return head + (state.acctMsg ? `<div class="flash ${state.acctMsg.kind}">${h(state.acctMsg.text)}</div>` : '') + `<section class="card account-card" style="--pc:${pcolor(me.id)}">
       ${avatar(me.id)}
       <div><span class="marker pl-name" style="color:var(--pc)">${h(me.name)}</span>
       <p class="hint">${h(acct.user.email)}</p></div>
@@ -835,6 +878,7 @@ document.addEventListener('click', (e) => {
     const a = act.dataset.acct;
     if (a === 'edit-bio') { state.editingBio = act.dataset.pid; render(); }
     else if (a === 'cancel-bio') { state.editingBio = null; render(); }
+    else if (a === 'later') { try { sessionStorage.setItem('theboard.authLater', '1'); } catch { /* ignore */ } render(); }
     else if (a === 'signout') { signOut().then(() => { state.acctMsg = null; render(); }); }
     return;
   }
@@ -893,6 +937,7 @@ document.addEventListener('submit', async (e) => {
     } else if (form.dataset.form === 'claim') {
       await claim(f.get('player'), f.get('code'));
       state.acctMsg = { kind: 'ok', text: `You're ${player(acct.me)?.name}. Go roast somebody.` };
+      if (!location.hash.startsWith('#/account')) { alertInPage(state.acctMsg.text); state.acctMsg = null; }
     }
   } catch (err) {
     if (form.dataset.form === 'bio') alertInPage(err.message);
