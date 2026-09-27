@@ -51,6 +51,27 @@ Other tools:
 - **Change league password.** Re-encrypts everything. Share the new password in the group chat.
 - **Backup.** Downloads the full league as JSON, or restores from one.
 
+## Player accounts (bios & photos)
+
+Players sign in (person icon) to rewrite anyone's bio or photo **except their own**. Supabase (free tier) handles this. The rules live in the database, in [`supabase/schema.sql`](supabase/schema.sql), not just the website:
+
+- Only signed-in league members can see bios and photos.
+- Nobody can write their own row.
+- Every overwrite is archived in `profile_history`.
+
+**One-time setup:**
+1. Create a free project at [supabase.com](https://supabase.com).
+2. In **SQL Editor**, paste and run `supabase/schema.sql`.
+3. Still in the SQL Editor, set the code players use to claim themselves (use the league password):
+   `insert into league_secrets values ('<league password>');`
+4. Under **Authentication → Sign In / Providers → Email**, turn **off** "Confirm email" (optional; easier for friends).
+5. Under **Authentication → URL Configuration**, set Site URL to `https://dirkedison.github.io/the-board/`.
+6. Copy **Project URL** and the **anon public key** (Project Settings → API) into `js/config.js`, then commit.
+
+**Common fixes (Table Editor):**
+- Wrong person claimed a player: delete that row in `members`.
+- Undo a vandalized bio: copy the old text back from `profile_history`.
+
 ## How the password protection works
 
 The site is static (GitHub Pages, free). League data is committed **only** as `data/league.enc.json`, encrypted with AES-256-GCM using a key derived from the league password (PBKDF2-SHA256, 310k iterations). Without the password the file is unreadable noise, even though the repo is public. The site's code is public, but the picks aren't.

@@ -3,6 +3,7 @@
 import { state, store, h, render, replaceLeague, ink, chip, player } from './app.js';
 import * as core from './core.js';
 import { fetchWeek } from './espn.js';
+import { acct } from './accounts.js';
 import { deriveKey, encryptJSON, exportKey, toB64, randomBytes } from './crypto.js';
 import { TEAMS, teamName } from './teams.js';
 
@@ -221,7 +222,8 @@ function draw() {
         <span class="chip" style="background:var(--p-${p.id})">${p.id}</span>
         <div class="bio-fields">
           <b>${h(p.name)}</b>
-          <textarea data-a="bio" data-pid="${p.id}" maxlength="900" rows="4" placeholder="Roast ${h(p.name)}">${h(p.bio || '')}</textarea>
+          ${acct.enabled ? '<span class="hint">Bios are now written by the players themselves (anyone but you) on each player page.</span>' : ''}
+          <textarea ${acct.enabled ? 'hidden' : ''} data-a="bio" data-pid="${p.id}" maxlength="900" rows="4" placeholder="Roast ${h(p.name)}">${h(p.bio || '')}</textarea>
           <select data-a="pteam" data-pid="${p.id}"><option value="">Favorite team…</option>
             ${Object.entries(TEAMS).sort((x, y) => x[1].name.localeCompare(y[1].name)).map(([code, t]) => `<option value="${code}" ${p.team === code ? 'selected' : ''}>${h(t.name)}</option>`).join('')}
           </select>

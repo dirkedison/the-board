@@ -495,3 +495,32 @@ details.card[open] > summary h3::before { transform: rotate(90deg); }
 @media (min-width: 640px) { .bio-fields { grid-template-columns: 1fr 12em; } .bio-fields b, .bio-fields textarea { grid-column: 1 / -1; } }
 .pl-card .bio { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .player-head .bio { font-size: 1rem; line-height: 1.5; max-width: 62ch; font-style: normal; }
+
+/* ---------- accounts ---------- */
+.pl-chip.photo, .pl-photo.photo { object-fit: cover; box-shadow: 0 0 0 3px var(--pc); }
+.pl-photo {
+  width: 84px; height: 84px; border-radius: 50%; flex: none; display: grid; place-items: center; color: #fff;
+  font-family: var(--marker); font-weight: 700; font-size: 2.6rem; text-shadow: 0 0 2px rgb(0 0 0 / .45);
+}
+.player-title { display: flex; align-items: center; gap: 14px; margin-top: 4px; }
+.player-title h1 { margin: 0; }
+.player-title .nick.big { margin: 0; }
+.credit { font-size: .78rem; color: var(--muted); }
+.credit a { color: var(--ink-2); font-weight: 600; }
+.btn.sm { padding: 7px 12px; font-size: .86rem; border-radius: 9px; }
+.edit-actions { margin: 8px 0 2px; }
+.self-note { margin: 8px 0 0; }
+.bio-editor { margin-top: 8px; }
+.bio-editor textarea {
+  width: 100%; font: inherit; line-height: 1.5; padding: 10px 12px; border-radius: 10px;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); resize: vertical;
+}
+.account-card { display: flex; align-items: center; gap: 14px; }
+.account-card .pl-chip { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-family: var(--marker); font-size: 1.8rem; }
+.form-grid select { font: inherit; padding: 9px 10px; border-radius: 9px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); }
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 50;
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 14px);
+  background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: 12px; font-weight: 600;
+  max-width: calc(100% - 32px); box-shadow: 0 8px 30px rgb(0 0 0 / .25);
+}

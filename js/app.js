@@ -6,6 +6,7 @@ import { lineChart, sparkline, pctTint } from './charts.js';
 import { TEAMS, teamName } from './teams.js';
 import { renderAdmin } from './admin.js';
 import { roast } from './roast.js';
+import { acct, initAccounts, signIn, signUp, signOut, claim, canEdit, saveBio, savePhoto, imageToDataURL } from './accounts.js';
 
 const DATA_URL = 'data/league.enc.json';
 
@@ -18,7 +19,7 @@ export const store = {
 export const state = {
   blob: null, key: null, league: null,
   espn: {}, current: null, // current = { season, week }
-  focus: null, liveTimer: null, teamSort: 'ats',
+  focus: null, liveTimer: null, teamSort: 'ats', editingBio: null, acctMsg: null,
 };
 
 export const h = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -142,6 +143,7 @@ function start() {
   injectPlayerColors();
   render();
   refreshScores();
+  initAccounts(render).then(render).catch(() => { acct.enabled = false; });
 }
 
 // ---------- live scores ----------
@@ -207,6 +209,7 @@ export function render() {
   else if (view === 'stats') { main.innerHTML = viewStats(); mountStatsCharts(); }
   else if (view === 'player' && player(arg)) { main.innerHTML = viewPlayer(arg); mountPlayerChart(arg); }
   else if (view === 'players') main.innerHTML = viewPlayers();
+  else if (view === 'account') main.innerHTML = viewAccount();
   else if (view === 'teams') main.innerHTML = viewTeams();
   else if (view === 'team' && TEAMS[arg]) main.innerHTML = viewTeam(arg);
   else if (view === 'admin') renderAdmin(main);
@@ -469,10 +472,88 @@ function setFocus(id) {
 }
 
 // ---------- PLAYERS ----------
-function bioBlock(p) {
+const profileOf = (id) => acct.profiles[id] || {};
+const bioText = (p) => profileOf(p.id).bio ?? p.bio ?? '';
+
+function avatar(id, cls = 'pl-chip') {
+  const photo = profileOf(id).photo;
+  return photo
+    ? `<img class="${cls} photo" src="${photo}" alt="${h(player(id)?.name)}" style="--pc:${pcolor(id)}">`
+    : `<span class="${cls}" style="background:${pcolor(id)}">${h(id)}</span>`;
+}
+
+function ago(iso) {
+  const m = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + 'm ago';
+  if (m < 1440) return Math.round(m / 60) + 'h ago';
+  return Math.round(m / 1440) + 'd ago';
+}
+
+function bioBlock(p, withCredit = false) {
   const team = p.team && TEAMS[p.team] ? `<span class="fan-of">Roots for the <b class="marker">${h(teamName(p.team))}</b></span>` : '';
-  const bio = p.bio ? `<p class="bio">${h(p.bio)}</p>` : '';
-  return bio || team ? `<div class="bio-block">${bio}${team}</div>` : '';
+  const text = bioText(p);
+  const bio = text ? `<p class="bio">${h(text)}</p>` : '';
+  const prof = profileOf(p.id);
+  const credit = withCredit && prof.bio_by ? `<span class="credit">Bio by ${nameLink(prof.bio_by)} · ${ago(prof.updated_at)}${prof.photo_by ? ` · photo by ${nameLink(prof.photo_by)}` : ''}</span>` : '';
+  return bio || team ? `<div class="bio-block">${bio}${credit}${team}</div>` : '';
+}
+
+function editControls(p) {
+  if (!acct.enabled) return '';
+  if (!acct.user || !acct.me) return `<a class="btn ghost sm" href="#/account">Sign in to roast ${h(p.name)}</a>`;
+  if (acct.me === p.id) return `<p class="hint self-note">This is you. You can't edit your own bio or photo. That's everyone else's job.</p>`;
+  if (state.editingBio === p.id) {
+    return `<form class="bio-editor" data-form="bio" data-pid="${p.id}">
+      <textarea name="bio" rows="6" maxlength="1500" placeholder="Roast ${h(p.name)}">${h(bioText(p))}</textarea>
+      <div class="row-actions"><button class="btn primary sm" type="submit">Save bio</button><button class="btn ghost sm" type="button" data-acct="cancel-bio">Cancel</button></div>
+    </form>`;
+  }
+  return `<div class="row-actions edit-actions">
+    <button class="btn sm" data-acct="edit-bio" data-pid="${p.id}">✏️ Rewrite bio</button>
+    <label class="btn sm">📷 ${profileOf(p.id).photo ? 'Change' : 'Add'} photo<input type="file" accept="image/*" data-acct="photo" data-pid="${p.id}" hidden></label>
+  </div>`;
+}
+
+// ---------- ACCOUNT ----------
+function viewAccount() {
+  const msg = state.acctMsg ? `<div class="flash ${state.acctMsg.kind}">${h(state.acctMsg.text)}</div>` : '';
+  const head = `<header class="view-head"><h1 class="marker">Your account</h1>
+    <p class="sub">Accounts let you rewrite everyone's bio and photo except your own.</p></header>${msg}`;
+  if (!acct.enabled) return head + `<p class="empty">Accounts aren't switched on yet. The commissioner needs to finish the Supabase setup (see the README).</p>`;
+  if (!acct.ready) return head + `<p class="empty">Loading…</p>`;
+  if (!acct.user) {
+    return head + `<section class="card">
+      <form class="form-grid" data-form="auth">
+        <label class="wide">Email<input name="email" type="email" autocomplete="email" required></label>
+        <label class="wide">Password<input name="password" type="password" autocomplete="current-password" minlength="6" required></label>
+        <button class="btn primary" type="submit" name="mode" value="in">Sign in</button>
+        <button class="btn" type="submit" name="mode" value="up">Create account</button>
+      </form>
+    </section>`;
+  }
+  if (!acct.me) {
+    const open = state.league.players.filter((p) => !acct.claimed[p.id]);
+    return head + `<section class="card">
+      <h3>Which one are you?</h3>
+      <p class="hint">Signed in as ${h(acct.user.email)}. Claim your player with the league password. Claim yourself, not somebody else; the commissioner can see who claimed what.</p>
+      <form class="form-grid" data-form="claim">
+        <label class="wide">I am
+          <select name="player" required>${open.map((p) => `<option value="${p.id}">${h(p.name)}</option>`).join('')}</select></label>
+        <label class="wide">League password<input name="code" type="password" required></label>
+        <button class="btn primary" type="submit">Claim</button>
+      </form>
+    </section>
+    <button class="btn ghost" data-acct="signout">Sign out</button>`;
+  }
+  const me = player(acct.me);
+  return head + `<section class="card account-card" style="--pc:${pcolor(me.id)}">
+      ${avatar(me.id)}
+      <div><span class="marker pl-name" style="color:var(--pc)">${h(me.name)}</span>
+      <p class="hint">${h(acct.user.email)}</p></div>
+    </section>
+    <p class="hint">Go to <a href="#/players">Players</a>, pick a victim, and hit ✏️ or 📷. Your own page is locked; your friends are in charge of you now.</p>
+    <button class="btn ghost" data-acct="signout">Sign out</button>`;
 }
 
 const tagList = (tags) => `<div class="tags">${tags.map((t) => `<span class="tag">${h(t)}</span>`).join('')}</div>`;
@@ -488,7 +569,7 @@ function viewPlayers() {
         const { nick, tags } = roast(a, p.id);
         return `<a class="pl-card" href="#/player/${p.id}" style="--pc:${pcolor(p.id)}">
           <div class="pl-top">
-            <span class="pl-chip" style="background:var(--pc)">${h(p.id)}</span>
+            ${avatar(p.id)}
             <div class="pl-id"><span class="marker pl-name" style="color:var(--pc)">${h(p.name)}</span>
               <span class="nick">“${h(nick)}”</span>
               <small>#${r.rank} · ${core.fmtRecord(r)}${r.pct != null ? ' · ' + core.fmtPct(r.pct) : ''}</small></div>
@@ -534,10 +615,12 @@ function viewPlayer(id) {
   const teams = Object.entries(t.teamRecs).sort((x, y) => count(y[1]) - count(x[1]) || y[1].net - x[1].net);
   return `<header class="view-head player-head" style="--pc:${pcolor(id)}">
       <a href="#/players" class="back" data-back>‹ Back</a>
-      <h1 class="marker" style="color:var(--pc)">${h(p.name)} <span class="big-chip">${chip(id)}</span></h1>
-      <p class="nick big">“${h(nick)}”</p>
+      <div class="player-title">${avatar(id, 'pl-photo')}<div>
+        <h1 class="marker" style="color:var(--pc)">${h(p.name)}</h1>
+        <p class="nick big">“${h(nick)}”</p></div></div>
       <p class="sub">#${row.rank} · ${core.fmtRecord(row)} · ${core.fmtPct(row.pct)}${row.gb ? ` · ${row.gb} GB` : ''}${row.streak ? ` · streak <span class="streak ${row.streak[0]}">${row.streak}</span>` : ''}</p>
-      ${bioBlock(p)}
+      ${bioBlock(p, true)}
+      ${editControls(p)}
       ${tagList(tags)}
     </header>
     <div class="tiles">
@@ -747,6 +830,14 @@ function mountPlayerChart(id) {
 document.addEventListener('click', (e) => {
   const back = e.target.closest('[data-back]');
   if (back && sessionStorage.getItem('theboard.nav') === '1') { e.preventDefault(); history.back(); return; }
+  const act = e.target.closest('[data-acct]');
+  if (act && act.tagName !== 'INPUT') {
+    const a = act.dataset.acct;
+    if (a === 'edit-bio') { state.editingBio = act.dataset.pid; render(); }
+    else if (a === 'cancel-bio') { state.editingBio = null; render(); }
+    else if (a === 'signout') { signOut().then(() => { state.acctMsg = null; render(); }); }
+    return;
+  }
   const sortBtn = e.target.closest('[data-teamsort]');
   if (sortBtn) { state.teamSort = sortBtn.dataset.teamsort; render(); return; }
   const teamEl = e.target.closest('[data-team]');
@@ -759,10 +850,59 @@ document.addEventListener('click', (e) => {
   const f = e.target.closest('[data-focus]');
   if (f) setFocus(f.dataset.focus);
 });
-document.addEventListener('change', (e) => {
+document.addEventListener('change', async (e) => {
+  if (e.target.dataset.acct === 'photo' && e.target.files[0]) {
+    const pid = e.target.dataset.pid;
+    try {
+      await savePhoto(pid, await imageToDataURL(e.target.files[0]));
+    } catch (err) { alertInPage(err.message); }
+    render();
+    return;
+  }
   if (e.target.id === 'picked-only') { store.set('theboard.pickedOnly', e.target.checked); render(); }
 });
-window.addEventListener('hashchange', () => { try { sessionStorage.setItem('theboard.nav', '1'); } catch { /* ignore */ } render(); });
+function alertInPage(text) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = text;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+document.addEventListener('submit', async (e) => {
+  const form = e.target.closest('[data-form]');
+  if (!form) return;
+  e.preventDefault();
+  const f = new FormData(form);
+  const btn = e.submitter;
+  if (btn) btn.disabled = true;
+  try {
+    if (form.dataset.form === 'bio') {
+      await saveBio(form.dataset.pid, f.get('bio'));
+      state.editingBio = null;
+    } else if (form.dataset.form === 'auth') {
+      if (btn?.value === 'up') {
+        const r = await signUp(f.get('email'), f.get('password'));
+        state.acctMsg = r.needsConfirm
+          ? { kind: 'info', text: 'Check your email to confirm, then come back and sign in.' }
+          : { kind: 'ok', text: 'Account created. Now claim your player.' };
+      } else {
+        await signIn(f.get('email'), f.get('password'));
+        state.acctMsg = null;
+      }
+    } else if (form.dataset.form === 'claim') {
+      await claim(f.get('player'), f.get('code'));
+      state.acctMsg = { kind: 'ok', text: `You're ${player(acct.me)?.name}. Go roast somebody.` };
+    }
+  } catch (err) {
+    if (form.dataset.form === 'bio') alertInPage(err.message);
+    else state.acctMsg = { kind: 'err', text: err.message };
+  }
+  if (btn) btn.disabled = false;
+  render();
+});
+
+window.addEventListener('hashchange', () => { state.editingBio = null; try { sessionStorage.setItem('theboard.nav', '1'); } catch { /* ignore */ } render(); });
 let resizeT;
 window.addEventListener('resize', () => {
   clearTimeout(resizeT);
