@@ -79,7 +79,10 @@ async function putFile(blob, message) {
   const api = `https://api.github.com/repos/${c.owner}/${c.repo}/contents/${DATA_PATH}`;
   const headers = { Authorization: `Bearer ${c.token}`, Accept: 'application/vnd.github+json' };
   const cur = await fetch(`${api}?ref=${encodeURIComponent(c.branch)}&_=${Date.now()}`, { headers, cache: 'no-store' });
-  if (cur.status === 401) throw new Error('GitHub rejected the token.');
+  if (cur.status === 401) throw new Error('GitHub rejected the token. It may be mistyped or expired. Paste it again under "Publishing setup".');
+  if (cur.status === 403 || cur.status === 404) {
+    throw new Error(`The token can't see ${c.owner}/${c.repo}. When creating it, choose "Only select repositories" → ${c.repo}, and set Contents to "Read and write".`);
+  }
   const sha = cur.ok ? (await cur.json()).sha : undefined;
   const res = await fetch(api, {
     method: 'PUT',
@@ -88,6 +91,7 @@ async function putFile(blob, message) {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    if (res.status === 403) throw new Error('The token can read the repo but not write to it. Edit the token on GitHub and set Contents to "Read and write".');
     throw new Error(`GitHub: ${body.message || res.status}`);
   }
 }
@@ -154,6 +158,7 @@ export function renderAdmin(main) {
   main.onclick = onClick;
   main.onchange = onChange;
   main.onsubmit = onSubmit;
+  main.oninput = onInput;
 }
 
 function draw() {
@@ -344,12 +349,23 @@ async function onChange(e) {
   draw();
 }
 
+function saveGh(form) {
+  const f = new FormData(form);
+  store.set(GH_KEY, { owner: f.get('owner').trim(), repo: f.get('repo').trim(), branch: f.get('branch').trim() || 'main', token: f.get('token').trim() });
+}
+
+// Save setup fields as they're typed, so a pasted token works without hitting Save.
+function onInput(e) {
+  const form = e.target.closest('#gh-form');
+  if (form) saveGh(form);
+}
+
 function onSubmit(e) {
   if (!location.hash.startsWith('#/admin')) return;
   e.preventDefault();
   const f = new FormData(e.target);
   if (e.target.id === 'gh-form') {
-    store.set(GH_KEY, { owner: f.get('owner').trim(), repo: f.get('repo').trim(), branch: f.get('branch').trim() || 'main', token: f.get('token').trim() });
+    saveGh(e.target);
     flash('Saved on this device.', 'ok');
     draw();
   } else if (e.target.id === 'pw-form') {
