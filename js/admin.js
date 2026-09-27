@@ -221,7 +221,7 @@ function draw() {
         <span class="chip" style="background:var(--p-${p.id})">${p.id}</span>
         <div class="bio-fields">
           <b>${h(p.name)}</b>
-          <input data-a="bio" data-pid="${p.id}" maxlength="140" placeholder="One-liner about ${h(p.name)}" value="${h(p.bio || '')}">
+          <textarea data-a="bio" data-pid="${p.id}" maxlength="900" rows="4" placeholder="Roast ${h(p.name)}">${h(p.bio || '')}</textarea>
           <select data-a="pteam" data-pid="${p.id}"><option value="">Favorite team…</option>
             ${Object.entries(TEAMS).sort((x, y) => x[1].name.localeCompare(y[1].name)).map(([code, t]) => `<option value="${code}" ${p.team === code ? 'selected' : ''}>${h(t.name)}</option>`).join('')}
           </select>

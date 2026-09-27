@@ -489,3 +489,9 @@ details.card[open] > summary h3::before { transform: rotate(90deg); }
 .team-head h1 { border-left: 6px solid var(--tc); padding-left: 10px; }
 [data-team] { cursor: pointer; }
 .pick-main a.marker { text-decoration: none; }
+.bio-fields textarea {
+  font: inherit; padding: 9px 10px; border-radius: 9px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); resize: vertical;
+}
+@media (min-width: 640px) { .bio-fields { grid-template-columns: 1fr 12em; } .bio-fields b, .bio-fields textarea { grid-column: 1 / -1; } }
+.pl-card .bio { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.player-head .bio { font-size: 1rem; line-height: 1.5; max-width: 62ch; font-style: normal; }
