@@ -166,3 +166,22 @@ export function timeline(league) {
   });
   return points;
 }
+
+// Every graded game on the board, from each team's side, graded against our lines.
+export function teamATS(league) {
+  const out = {};
+  for (const w of [...league.weeks].sort((a, b) => a.week - b.week)) {
+    for (const g of w.games) {
+      if (g.spread == null || !coverSide(g)) continue;
+      for (const team of [g.away, g.home]) {
+        const isHome = team === g.home;
+        (out[team] ??= []).push({
+          week: w.week, game: g, team, opp: isHome ? g.away : g.home, isHome,
+          isFav: g.fav === team && g.spread > 0, isDog: !!g.fav && g.fav !== team && g.spread > 0,
+          spread: g.spread, outcome: outcome(g, team), margin: atsMargin(g, team),
+        });
+      }
+    }
+  }
+  return out;
+}

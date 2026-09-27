@@ -1,6 +1,13 @@
 // Analytics built on core.allPicks(). Everything here is derived, nothing stored.
 import { allPicks, record, timeline, standings } from './core.js';
 
+const PRIME = ['Wed', 'Thu', 'Fri', 'Sat', 'Sun 8PM', 'Mon', 'Tue'];
+export const SPREAD_BUCKETS = [
+  ['Pick’em to 3', (p) => p.spread <= 3],
+  ['3.5 to 6.5', (p) => p.spread > 3 && p.spread < 7],
+  ['7+', (p) => p.spread >= 7],
+];
+
 const SLOT_ORDER = ['Wed', 'Thu', 'Fri', 'Sat', 'Sun AM', 'Sun 1PM', 'Sun 4PM', 'Sun 8PM', 'Mon', 'Tue'];
 
 export function slotCategories(picks) {
@@ -49,6 +56,13 @@ export function analyze(league) {
       herd: record(mine.filter((p) => p.crowd + 1 > n / 2)),
       loneShare: share(mine, (p) => p.crowd === 0),
       badBeats: g.filter((p) => p.outcome === 'L' && p.margin > -3).length,
+      closeW: g.filter((p) => p.outcome === 'W' && p.margin != null && p.margin < 3).length,
+      prime: record(mine.filter((p) => PRIME.includes(p.slot))),
+      daytime: record(mine.filter((p) => !PRIME.includes(p.slot))),
+      buckets: SPREAD_BUCKETS.map(([label, fn]) => [label, record(mine.filter(fn))]),
+      teamRecs: Object.fromEntries(Object.keys(teamCounts).map((tm) => [tm, record(mine.filter((p) => p.team === tm))])),
+      best: [...g].filter((p) => p.margin != null).sort((x, y) => y.margin - x.margin)[0],
+      worst: [...g].filter((p) => p.margin != null).sort((x, y) => x.margin - y.margin)[0],
       bySlot: {},
       favTeam: favTeam ? { team: favTeam[0], count: favTeam[1] } : null,
       teamCounts,
@@ -74,6 +88,17 @@ export function analyze(league) {
         if (q.game === p.game && q.team === p.team) same++;
       }
       agree[a.id][b.id] = both ? { same, both, pct: same / both } : null;
+    }
+  }
+
+  // Duels: both players on the same game, opposite sides. Record from the row player's view.
+  const duels = {};
+  for (const a of players) {
+    duels[a.id] = {};
+    for (const b of players) {
+      if (a.id === b.id) continue;
+      const mine = perPlayer[a.id].picks.filter((p) => perPlayer[b.id].picks.some((q) => q.game === p.game && q.team !== p.team));
+      duels[a.id][b.id] = record(mine);
     }
   }
 
@@ -112,7 +137,7 @@ export function analyze(league) {
   }
 
   return {
-    picks, graded, perPlayer, agree, teamRows, crowdRec, blowouts, beats, sweats, cats,
+    picks, graded, perPlayer, agree, duels, teamRows, crowdRec, blowouts, beats, sweats, cats,
     timeline: tl, leadChanges: changes, slotsInFirst, standings: standings(league),
     overall: {
       fav: record(graded.filter((p) => p.isFav)),

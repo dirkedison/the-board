@@ -19,8 +19,14 @@ Our NFL pick'em, off the whiteboard and onto everyone's phone.
   - "pick twins" (who picks alike)
   - a team ledger
   - biggest covers and bad beats
-- **Players.** A card per player with an auto-generated scouting report ("Chalk eater", "Owns Sun 4PM", "Ice cold"…) and an optional bio and favorite team, set under Commissioner → Player bios. Tap any name, letter, or chip anywhere on the site to open that player's page.
-- **Player pages.** Every pick with its ATS margin, plus a chart of that player against the field.
+- **Players.** A card per player with an earned nickname ("The Human Fade Button", "Bottom Feeder", "Lucky Bastard"…; each one unique across the league) and roast tags generated from their picks, and an optional bio and favorite team, set under Commissioner → Player bios. Tap any name, letter, or chip anywhere on the site to open that player's page.
+- **Player pages.** Includes:
+  - a chart against the field and week-by-week bars
+  - splits (fav/dog, home/road, spread size, primetime, lone wolf vs. herd, each slot)
+  - head-to-head duels against every other player
+  - money teams and kryptonite
+  - best and worst pick, and every pick with its ATS margin
+- **Teams.** All 32 NFL teams against the spread (graded on our lines): home/road, fav/dog, average margin, streak, and how the league does backing them. Each team has a game log showing who rode them and who faded them.
 - **Automatic grading.** Final scores come from ESPN's public scoreboard, so nobody enters results by hand.
 
 ## Commissioner guide

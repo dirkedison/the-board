@@ -5,6 +5,7 @@ import { analyze } from './stats.js';
 import { lineChart, sparkline, pctTint } from './charts.js';
 import { TEAMS, teamName } from './teams.js';
 import { renderAdmin } from './admin.js';
+import { roast } from './roast.js';
 
 const DATA_URL = 'data/league.enc.json';
 
@@ -17,7 +18,7 @@ export const store = {
 export const state = {
   blob: null, key: null, league: null,
   espn: {}, current: null, // current = { season, week }
-  focus: null, liveTimer: null,
+  focus: null, liveTimer: null, teamSort: 'ats',
 };
 
 export const h = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -197,7 +198,7 @@ function route() {
 export function render() {
   if (!state.league) return;
   const { view, arg } = route();
-  document.querySelectorAll('.tabbar a').forEach((a) => a.classList.toggle('active', a.dataset.view === view || (view === 'player' && a.dataset.view === 'players')));
+  document.querySelectorAll('.tabbar a').forEach((a) => a.classList.toggle('active', a.dataset.view === view || (view === 'player' && a.dataset.view === 'players') || (view === 'team' && a.dataset.view === 'teams')));
   const main = $('#view');
   const scrollKey = view + (arg || '');
   if (main.dataset.key !== scrollKey) window.scrollTo(0, 0);
@@ -206,6 +207,8 @@ export function render() {
   else if (view === 'stats') { main.innerHTML = viewStats(); mountStatsCharts(); }
   else if (view === 'player' && player(arg)) { main.innerHTML = viewPlayer(arg); mountPlayerChart(arg); }
   else if (view === 'players') main.innerHTML = viewPlayers();
+  else if (view === 'teams') main.innerHTML = viewTeams();
+  else if (view === 'team' && TEAMS[arg]) main.innerHTML = viewTeam(arg);
   else if (view === 'admin') renderAdmin(main);
   else if (view === 'board') main.innerHTML = viewBoard(Number(arg) || null);
   else main.innerHTML = viewStandings();
@@ -227,7 +230,7 @@ function gameCard(g) {
     if (live === team) cls += ' covering';
     const score = core.hasScore(g) ? core.scoreFor(g, team) : '';
     return `<div class="${cls}">
-      <span class="tname">${h(teamName(team))}${line ? `<span class="spread">${line}</span>` : ''}</span>
+      <span class="tname" data-team="${team}">${h(teamName(team))}${line ? `<span class="spread">${line}</span>` : ''}</span>
       <span class="pickers">${pickers.map(ink).join('')}</span>
       <span class="score">${score}</span>
       ${cls.includes('crossed') ? X_MARK : ''}
@@ -472,77 +475,78 @@ function bioBlock(p) {
   return bio || team ? `<div class="bio-block">${bio}${team}</div>` : '';
 }
 
-// Auto-generated personality tags from pick history.
-function scoutingTags(a, id) {
-  const t = a.perPlayer[id];
-  const row = a.standings.find((r) => r.player.id === id);
-  const tags = [];
-  const n = t.picks.length;
-  if (row.rank === 1) tags.push('👑 Top of the board');
-  if (row.streak && /^W[3-9]/.test(row.streak)) tags.push(`🔥 On fire (${row.streak})`);
-  if (row.streak && /^L[3-9]/.test(row.streak)) tags.push(`🧊 Ice cold (${row.streak})`);
-  if (n >= 4 && t.favPct != null && t.favPct >= 0.65) tags.push('Chalk eater');
-  if (n >= 4 && t.favPct != null && t.favPct <= 0.35) tags.push('Dog lover');
-  if (n >= 4 && t.homePct >= 0.7) tags.push('Homebody');
-  if (n >= 4 && t.homePct <= 0.3) tags.push('Road warrior');
-  if (n >= 4 && t.loneShare >= 0.3) tags.push('Lone wolf');
-  if (n >= 4 && t.loneShare <= 0.1) tags.push('Runs with the herd');
-  const slots = Object.entries(t.bySlot).filter(([, r]) => r.W + r.L >= 2);
-  const best = slots.filter(([, r]) => r.pct === 1).sort((x, y) => y[1].W - x[1].W)[0];
-  const worst = slots.filter(([, r]) => r.pct === 0).sort((x, y) => y[1].L - x[1].L)[0];
-  if (best) tags.push(`Owns ${best[0]}`);
-  if (worst) tags.push(`Cursed on ${worst[0]}`);
-  if (t.favTeam && t.favTeam.count >= 3) tags.push(`Rides the ${teamName(t.favTeam.team)}`);
-  if (t.badBeats >= 2) tags.push('Bad-beat magnet');
-  return tags.slice(0, 5);
-}
+const tagList = (tags) => `<div class="tags">${tags.map((t) => `<span class="tag">${h(t)}</span>`).join('')}</div>`;
 
 function viewPlayers() {
   const a = analyze(state.league);
   lastAnalysis = a;
   const tl = a.timeline;
-  return `<header class="view-head"><h1 class="marker">Players</h1><p class="sub">Tap anyone for the full scouting report.</p></header>
+  return `<header class="view-head"><h1 class="marker">Players</h1><p class="sub">Nicknames are earned, not given. Tap anyone for the full report.</p></header>
     <div class="player-grid">
       ${a.standings.map((r) => {
         const p = r.player;
+        const { nick, tags } = roast(a, p.id);
         return `<a class="pl-card" href="#/player/${p.id}" style="--pc:${pcolor(p.id)}">
           <div class="pl-top">
             <span class="pl-chip" style="background:var(--pc)">${h(p.id)}</span>
             <div class="pl-id"><span class="marker pl-name" style="color:var(--pc)">${h(p.name)}</span>
+              <span class="nick">“${h(nick)}”</span>
               <small>#${r.rank} · ${core.fmtRecord(r)}${r.pct != null ? ' · ' + core.fmtPct(r.pct) : ''}</small></div>
             ${sparkline(netSeries(tl, p.id), 'var(--pc)', 80, 30)}
           </div>
           ${bioBlock(p)}
-          <div class="tags">${scoutingTags(a, p.id).map((t) => `<span class="tag">${h(t)}</span>`).join('')}</div>
+          ${tagList(tags.slice(0, 4))}
         </a>`;
       }).join('')}
     </div>`;
 }
 
 // ---------- PLAYER ----------
+function splitRow(label, r) {
+  return `<tr><th>${h(label)}</th><td>${r.W + r.L + r.P ? core.fmtRecord(r) : '—'}</td><td style="${pctTint(r.pct, r.W + r.L)}">${r.W + r.L ? pct0(r.pct) : '—'}</td></tr>`;
+}
+
+function weekBars(row) {
+  const weeks = Object.entries(row.byWeek).filter(([, r]) => r.W + r.L + r.P);
+  if (!weeks.length) return '<p class="hint">No graded weeks yet.</p>';
+  const max = Math.max(...weeks.map(([, r]) => Math.max(r.W, r.L)), 1);
+  return `<div class="wkbars">${weeks.map(([w, r]) => `<a class="wkbar" href="#/board/${w}" title="Week ${w}: ${core.fmtRecord(r)}">
+      <span class="wk-up"><span class="bar-w" style="height:${(r.W / max) * 100}%"></span></span>
+      <span class="wk-down"><span class="bar-l" style="height:${(r.L / max) * 100}%"></span></span>
+      <span class="wk-lbl">W${w}</span><span class="wk-rec">${core.fmtRecord(r)}</span></a>`).join('')}</div>
+    <p class="legend-note"><span class="sw" style="background:var(--good)"></span> covers <span class="sw" style="background:var(--bad);margin-left:8px"></span> losses</p>`;
+}
+
 function viewPlayer(id) {
   const a = analyze(state.league);
   lastAnalysis = a;
   const p = player(id);
   const t = a.perPlayer[id];
   const row = a.standings.find((r) => r.player.id === id);
+  const { nick, tags } = roast(a, id);
   const byWeek = {};
   for (const pk of t.picks) (byWeek[pk.week] ??= []).push(pk);
   const bestSlot = Object.entries(t.bySlot).filter(([, r]) => r.W + r.L >= 2).sort((x, y) => y[1].pct - x[1].pct || y[1].W - x[1].W)[0];
   const others = state.league.players.filter((o) => o.id !== id);
   const twin = others.map((o) => ({ o, x: a.agree[id][o.id] })).filter((z) => z.x).sort((x, y) => y.x.pct - x.x.pct)[0];
+  const luck = t.closeW - t.badBeats;
+  const count = (r) => r.W + r.L + r.P;
+  const teams = Object.entries(t.teamRecs).sort((x, y) => count(y[1]) - count(x[1]) || y[1].net - x[1].net);
   return `<header class="view-head player-head" style="--pc:${pcolor(id)}">
       <a href="#/players" class="back" data-back>‹ Back</a>
       <h1 class="marker" style="color:var(--pc)">${h(p.name)} <span class="big-chip">${chip(id)}</span></h1>
-      <p class="sub">#${row.rank} · ${core.fmtRecord(row)} · ${core.fmtPct(row.pct)}${row.streak ? ` · streak <span class="streak ${row.streak[0]}">${row.streak}</span>` : ''}</p>
+      <p class="nick big">“${h(nick)}”</p>
+      <p class="sub">#${row.rank} · ${core.fmtRecord(row)} · ${core.fmtPct(row.pct)}${row.gb ? ` · ${row.gb} GB` : ''}${row.streak ? ` · streak <span class="streak ${row.streak[0]}">${row.streak}</span>` : ''}</p>
       ${bioBlock(p)}
-      <div class="tags">${scoutingTags(a, id).map((t) => `<span class="tag">${h(t)}</span>`).join('')}</div>
+      ${tagList(tags)}
     </header>
     <div class="tiles">
       <div class="tile"><span class="tile-num">${pct0(t.favPct)}</span><span class="tile-label">on favorites</span></div>
       <div class="tile"><span class="tile-num">${pct0(t.homePct)}</span><span class="tile-label">on home teams</span></div>
       <div class="tile"><span class="tile-num">${signed(t.avgMargin)}</span><span class="tile-label">avg ATS margin</span></div>
-      <div class="tile"><span class="tile-num">${t.badBeats}</span><span class="tile-label">losses by &lt;3 ATS</span></div>
+      <div class="tile"><span class="tile-num">${signed(luck, 0)}</span><span class="tile-label">luck (close covers minus bad beats)</span></div>
+      <div class="tile"><span class="tile-num">${pct0(t.loneShare)}</span><span class="tile-label">lone-wolf picks</span></div>
+      <div class="tile"><span class="tile-num">${t.total.L}-${t.total.W}</span><span class="tile-label">record if you faded them</span></div>
       <div class="tile"><span class="tile-num sm">${bestSlot ? h(bestSlot[0]) : '—'}</span><span class="tile-label">best slot${bestSlot ? ` (${core.fmtRecord(bestSlot[1])})` : ''}</span></div>
       <div class="tile"><span class="tile-num sm">${twin ? h(twin.o.name) : '—'}</span><span class="tile-label">pick twin${twin ? ` (${Math.round(twin.x.pct * 100)}% same)` : ''}</span></div>
     </div>
@@ -551,6 +555,47 @@ function viewPlayer(id) {
       <p class="hint">Games over .500 after each slot. Gray is the league average.</p>
       <div id="player-chart"></div>
     </section>
+    <section class="card">
+      <h3>Week by week</h3>
+      ${weekBars(row)}
+    </section>
+    <section class="card">
+      <h3>Splits</h3>
+      <p class="hint">Where the money gets made, and where it gets lit on fire.</p>
+      <div class="table-wrap"><table class="grid-table splits">
+        <thead><tr><th></th><th>Record</th><th>Cover %</th></tr></thead>
+        <tbody>
+          ${splitRow('Favorites', t.fav)}${splitRow('Underdogs', t.dog)}
+          ${splitRow('Home teams', t.home)}${splitRow('Road teams', t.away)}
+          ${t.buckets.map(([l, r]) => splitRow('Spread ' + l, r)).join('')}
+          ${splitRow('Primetime (Thu, SNF, MNF)', t.prime)}${splitRow('Sunday daytime', t.daytime)}
+          ${splitRow('Lone-wolf picks', t.lone)}${splitRow('With the herd', t.herd)}
+          ${Object.entries(t.bySlot).map(([s, r]) => splitRow(s, r)).join('')}
+        </tbody>
+      </table></div>
+    </section>
+    <section class="card">
+      <h3>Head to head</h3>
+      <p class="hint">Same side: how often you two agree. Duels: your record when you took opposite sides of the same game.</p>
+      <div class="table-wrap"><table class="grid-table">
+        <thead><tr><th></th><th>Same side</th><th>Duels</th><th></th></tr></thead>
+        <tbody>${others.map((o) => {
+          const ag = a.agree[id][o.id];
+          const d = a.duels[id][o.id];
+          const verdict = d.W + d.L === 0 ? '' : d.W > d.L ? 'owns them' : d.W < d.L ? 'owned' : 'dead even';
+          return `<tr><th>${chip(o.id, 'sm')} ${nameLink(o.id)}</th><td>${ag ? Math.round(ag.pct * 100) + '%' : '—'}</td><td style="${pctTint(d.pct, d.W + d.L)}">${count(d) ? core.fmtRecord(d) : '—'}</td><td class="verdict">${verdict}</td></tr>`;
+        }).join('')}</tbody>
+      </table></div>
+    </section>
+    <section class="card">
+      <h3>Teams</h3>
+      <p class="hint">Money teams and kryptonite.</p>
+      <div class="team-chips">${teams.map(([tm, r]) => `<a class="team-chip" href="#/team/${tm}" style="${pctTint(r.pct, r.W + r.L)}"><span class="marker">${h(teamName(tm))}</span><b>${core.fmtRecord(r)}</b></a>`).join('') || '<p class="hint">No picks yet.</p>'}</div>
+    </section>
+    ${t.best ? `<section class="card two-col">
+      <div><h3>Best pick</h3>${pickLine(t.best)}</div>
+      <div><h3>Worst pick</h3>${pickLine(t.worst)}</div>
+    </section>` : ''}
     <section class="card">
       <h3>Every pick</h3>
       ${Object.keys(byWeek).sort((x, y) => y - x).map((w) => {
@@ -562,13 +607,121 @@ function viewPlayer(id) {
             const res = pk.outcome || (g.status === 'live' ? 'live' : 'pending');
             return `<div class="pick-item">
               <span class="slot-tag">${h(pk.slot)}</span>
-              <span class="pick-main"><span class="marker">${h(teamName(pk.team))} ${line}</span>
+              <span class="pick-main"><a class="marker" href="#/team/${pk.team}">${h(teamName(pk.team))} ${line}</a>
                 <small>${pk.isHome ? 'vs' : '@'} ${h(teamName(pk.opp))}${core.hasScore(g) ? ` · ${core.scoreFor(g, pk.team)}-${core.scoreFor(g, pk.opp)}` : ''}${pk.crowd === 0 ? ' · lone wolf' : ` · +${pk.crowd} other${pk.crowd > 1 ? 's' : ''}`}</small></span>
               <span class="result ${res}">${res === 'pending' ? '·' : res === 'live' ? 'LIVE' : res}${pk.margin != null && pk.outcome !== 'P' ? `<small>${signed(pk.margin)}</small>` : ''}</span>
             </div>`;
           }).join('')}</div>`;
       }).join('') || '<p class="hint">No picks yet.</p>'}
     </section>`;
+}
+
+// ---------- NFL TEAMS (ATS) ----------
+function teamRows() {
+  const ats = core.teamATS(state.league);
+  const picks = core.allPicks(state.league);
+  return Object.keys(TEAMS).map((code) => {
+    const games = ats[code] || [];
+    const on = picks.filter((p) => p.team === code);
+    return {
+      code, games,
+      rec: core.record(games),
+      home: core.record(games.filter((x) => x.isHome)),
+      away: core.record(games.filter((x) => !x.isHome)),
+      fav: core.record(games.filter((x) => x.isFav)),
+      dog: core.record(games.filter((x) => x.isDog)),
+      avg: games.length ? games.reduce((s, x) => s + (x.margin ?? 0), 0) / games.length : null,
+      board: core.record(on),
+      pickCount: on.length,
+      streak: core.streak(games),
+    };
+  });
+}
+
+const TEAM_SORTS = {
+  ats: ['Cover %', (x, y) => (y.rec.pct ?? -1) - (x.rec.pct ?? -1) || y.rec.W - x.rec.W || (y.avg ?? 0) - (x.avg ?? 0)],
+  margin: ['Avg margin', (x, y) => (y.avg ?? -99) - (x.avg ?? -99)],
+  board: ['Board record', (x, y) => y.board.net - x.board.net || y.pickCount - x.pickCount],
+  picked: ['Most picked', (x, y) => y.pickCount - x.pickCount || y.board.net - x.board.net],
+};
+
+const recOrDash = (r) => (r.W + r.L + r.P ? core.fmtRecord(r) : '—');
+
+function viewTeams() {
+  const sort = TEAM_SORTS[state.teamSort] ? state.teamSort : 'ats';
+  const rows = teamRows().sort(TEAM_SORTS[sort][1]);
+  const all = rows.flatMap((r) => r.games);
+  const favs = core.record(all.filter((x) => x.isFav));
+  const homes = core.record(all.filter((x) => x.isHome && x.spread));
+  return `<header class="view-head"><h1 class="marker">NFL vs. the spread</h1>
+      <p class="sub">Every game on the board, graded against our lines.</p></header>
+    <div class="tiles">
+      <div class="tile"><span class="tile-num">${core.fmtRecord(favs)}</span><span class="tile-label">favorites ATS</span></div>
+      <div class="tile"><span class="tile-num">${core.fmtRecord(homes)}</span><span class="tile-label">home teams ATS</span></div>
+    </div>
+    <nav class="pills">${Object.entries(TEAM_SORTS).map(([k, [label]]) => `<button class="pill${k === sort ? ' active' : ''}" data-teamsort="${k}">${label}</button>`).join('')}</nav>
+    <section class="card flush">
+      <div class="table-wrap"><table class="grid-table teams-table">
+        <thead><tr><th>Team</th><th>ATS</th><th>Home</th><th>Road</th><th>Fav</th><th>Dog</th><th>Avg</th><th>Strk</th><th>Board</th></tr></thead>
+        <tbody>${rows.map((r) => `<tr>
+          <th><span class="team-sw" style="background:${TEAMS[r.code].color}"></span><a class="marker" href="#/team/${r.code}">${h(teamName(r.code))}</a></th>
+          <td class="strong" style="${pctTint(r.rec.pct, r.rec.W + r.rec.L)}">${recOrDash(r.rec)}</td>
+          <td>${recOrDash(r.home)}</td><td>${recOrDash(r.away)}</td>
+          <td>${recOrDash(r.fav)}</td><td>${recOrDash(r.dog)}</td>
+          <td>${signed(r.avg)}</td>
+          <td><span class="streak ${r.streak[0] || ''}">${r.streak || '—'}</span></td>
+          <td style="${pctTint(r.board.pct, r.board.W + r.board.L)}">${r.pickCount ? `${core.fmtRecord(r.board)} <small>(${r.pickCount})</small>` : '—'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+      <p class="legend-note pad">Board: how the league does picking that team (times picked). Avg: average margin against the spread.</p>
+    </section>`;
+}
+
+function viewTeam(code) {
+  const r = teamRows().find((x) => x.code === code);
+  const T = TEAMS[code];
+  const picks = core.allPicks(state.league);
+  const pickers = state.league.players.map((p) => {
+    const mine = picks.filter((x) => x.player === p.id);
+    return { p, on: core.record(mine.filter((x) => x.team === code)), against: core.record(mine.filter((x) => x.opp === code)) };
+  }).filter((x) => x.on.W + x.on.L + x.on.P + x.against.W + x.against.L + x.against.P);
+  return `<header class="view-head team-head" style="--tc:${T.color}">
+      <a href="#/teams" class="back" data-back>‹ Back</a>
+      <h1 class="marker">${h(T.city)} ${h(teamName(code))}</h1>
+      <p class="sub">${core.fmtRecord(r.rec)} ATS${r.rec.pct != null ? ` · covers ${pct0(r.rec.pct)}` : ''}${r.streak ? ` · streak <span class="streak ${r.streak[0]}">${r.streak}</span>` : ''}</p>
+    </header>
+    <div class="tiles">
+      <div class="tile"><span class="tile-num">${recOrDash(r.home)}</span><span class="tile-label">at home</span></div>
+      <div class="tile"><span class="tile-num">${recOrDash(r.away)}</span><span class="tile-label">on the road</span></div>
+      <div class="tile"><span class="tile-num">${recOrDash(r.fav)}</span><span class="tile-label">as favorite</span></div>
+      <div class="tile"><span class="tile-num">${recOrDash(r.dog)}</span><span class="tile-label">as underdog</span></div>
+      <div class="tile"><span class="tile-num">${signed(r.avg)}</span><span class="tile-label">avg ATS margin</span></div>
+      <div class="tile"><span class="tile-num">${r.pickCount ? core.fmtRecord(r.board) : '—'}</span><span class="tile-label">the board backing them</span></div>
+    </div>
+    <section class="card">
+      <h3>Game log</h3>
+      ${r.games.length ? r.games.slice().reverse().map((x) => {
+        const g = x.game;
+        const line = x.isFav ? `-${x.spread}` : x.spread ? `+${x.spread}` : 'PK';
+        const on = Object.entries(g.picks || {}).filter(([, tm]) => tm === code).map(([pid]) => pid);
+        const vs = Object.entries(g.picks || {}).filter(([, tm]) => tm !== code).map(([pid]) => pid);
+        return `<div class="pick-item">
+          <span class="slot-tag"><a href="#/board/${x.week}">Wk ${x.week}</a></span>
+          <span class="pick-main"><span class="marker">${x.isHome ? 'vs' : '@'} ${h(teamName(x.opp))} <span class="spread">${line}</span></span>
+            <small>${core.hasScore(g) ? `${core.scoreFor(g, code)}-${core.scoreFor(g, x.opp)}` : ''}${on.length ? ` · backed by ${on.map(ink).join('')}` : ''}${vs.length ? ` · faded by ${vs.map(ink).join('')}` : ''}</small></span>
+          <span class="result ${x.outcome}">${x.outcome}${x.margin != null && x.outcome !== 'P' ? `<small>${signed(x.margin)}</small>` : ''}</span>
+        </div>`;
+      }).join('') : '<p class="hint">No graded games yet.</p>'}
+    </section>
+    ${pickers.length ? `<section class="card">
+      <h3>Who rides them, who fades them</h3>
+      <div class="table-wrap"><table class="grid-table">
+        <thead><tr><th></th><th>Backing</th><th>Fading</th></tr></thead>
+        <tbody>${pickers.map((x) => `<tr><th>${chip(x.p.id, 'sm')} ${nameLink(x.p.id)}</th>
+          <td style="${pctTint(x.on.pct, x.on.W + x.on.L)}">${recOrDash(x.on)}</td>
+          <td style="${pctTint(x.against.pct, x.against.W + x.against.L)}">${recOrDash(x.against)}</td></tr>`).join('')}</tbody>
+      </table></div>
+    </section>` : ''}`;
 }
 
 function mountPlayerChart(id) {
@@ -594,6 +747,10 @@ function mountPlayerChart(id) {
 document.addEventListener('click', (e) => {
   const back = e.target.closest('[data-back]');
   if (back && sessionStorage.getItem('theboard.nav') === '1') { e.preventDefault(); history.back(); return; }
+  const sortBtn = e.target.closest('[data-teamsort]');
+  if (sortBtn) { state.teamSort = sortBtn.dataset.teamsort; render(); return; }
+  const teamEl = e.target.closest('[data-team]');
+  if (teamEl && !e.target.closest('a, button') && !location.hash.startsWith('#/admin')) { location.hash = '#/team/' + teamEl.dataset.team; return; }
   const mark = e.target.closest('[data-player]');
   if (mark && !mark.closest('a, button, [data-focus]') && location.hash.indexOf('#/admin') !== 0) {
     location.hash = '#/player/' + mark.dataset.player;
