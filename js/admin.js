@@ -210,7 +210,8 @@ function draw() {
     ${slots.map((s) => {
       const done = players.filter((p) => s.games.some((g) => g.picks?.[p.id]));
       return `<section class="slot admin-slot">
-        <h2 class="slot-title"><span class="marker">${h(s.label)}</span><small>${done.length}/${players.length} in ${done.map((p) => ink(p.id)).join('')}</small></h2>
+        <h2 class="slot-title"><span class="marker">${h(s.label)}</span><small>${done.length}/${players.length} in ${done.map((p) => ink(p.id)).join('')}${missedIn(s.label).length ? ` · missed ${missedIn(s.label).map((id) => ink(id)).join('')}` : ''}</small>
+          ${missButton(s)}</h2>
         ${s.games.map((g) => adminGame(g, labels)).join('')}
       </section>`;
     }).join('')}` : `<p class="empty">No games for week ${A.week} yet. Load them from ESPN above.</p>`}
@@ -253,6 +254,26 @@ function draw() {
       <button class="btn ghost" data-a="discard" ${A.busy ? 'disabled' : ''}>Discard</button>
       <button class="btn primary" data-a="publish" ${A.busy ? 'disabled' : ''}>Publish</button>
     </div>`;
+}
+
+// Missed picks: week.missed = { playerId: [slot labels] }, each an automatic loss.
+function missedIn(slot) {
+  return Object.entries(week()?.missed || {}).filter(([, slots]) => slots.includes(slot)).map(([id]) => id);
+}
+
+function setMissed(pid, slot, on) {
+  const wk = week();
+  wk.missed ||= {};
+  const cur = new Set(wk.missed[pid] || []);
+  if (on) cur.add(slot); else cur.delete(slot);
+  if (cur.size) wk.missed[pid] = [...cur]; else delete wk.missed[pid];
+  if (!Object.keys(wk.missed).length) delete wk.missed;
+}
+
+function missButton(s) {
+  if (!A.sel || s.games.some((g) => g.picks?.[A.sel])) return '';
+  const on = missedIn(s.label).includes(A.sel);
+  return `<button class="btn ghost sm miss-btn${on ? ' on' : ''}" data-a="miss" data-slot="${h(s.label)}">${on ? `Missed ✓ (undo)` : `Mark ${h(player(A.sel)?.name)} missed`}</button>`;
 }
 
 function adminGame(g, labels) {
@@ -308,7 +329,12 @@ async function onClick(e) {
     else {
       for (const other of week().games) if (other.slot === g.slot && other.picks?.[A.sel]) delete other.picks[A.sel];
       g.picks[A.sel] = team;
+      setMissed(A.sel, g.slot, false);
     }
+    A.msg = '';
+    touch();
+  } else if (a === 'miss') {
+    setMissed(A.sel, t.dataset.slot, !missedIn(t.dataset.slot).includes(A.sel));
     A.msg = '';
     touch();
   } else if (a === 'week') {

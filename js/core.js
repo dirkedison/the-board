@@ -103,6 +103,14 @@ export function allPicks(league) {
           });
         }
       }
+      // No pick in a slot counts as a loss once the commissioner marks it missed.
+      for (const [pid, slots] of Object.entries(week.missed || {})) {
+        if (!slots.includes(slot.label)) continue;
+        out.push({
+          player: pid, week: week.week, slot: slot.label, slotIndex, game: null, team: null, opp: null,
+          isFav: false, isDog: false, isHome: false, spread: 0, outcome: 'L', margin: null, missed: true,
+        });
+      }
       slotIndex++;
     }
   }

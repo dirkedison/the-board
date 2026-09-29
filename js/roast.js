@@ -66,6 +66,7 @@ function candidates(a, id) {
     [!!loyalLoser, 61, null, loyalLoser && `Blind loyalty to the ${teamName(loyalLoser[0])} (${fmt(loyalLoser[1])})`],
     [!!moneyTeam, 44, null, moneyTeam && `Cashes on the ${teamName(moneyTeam[0])} (${fmt(moneyTeam[1])})`],
     [total.P >= 2, 30, 'Push King', `${total.P} pushes. Can't even lose right.`],
+    [t.missed.length >= 1, 76, 'Asleep at the Wheel', `Forgot to pick ${t.missed.length === 1 ? 'once' : t.missed.length + ' times'}. Free L${t.missed.length === 1 ? '' : 's'}.`],
   ].filter((r) => r[0] && r[3]);
 
   rules.sort((x, y) => y[1] - x[1]);

@@ -309,7 +309,7 @@ function viewBoard(n) {
       const r = core.record(picks.filter((x) => x.player === p.id));
       return `<a class="wk-rec" href="#/player/${p.id}">${chip(p.id)}<span>${core.fmtRecord(r, false)}</span>${r.pending ? `<small>${r.pending} open</small>` : ''}</a>`;
     }).join('');
-    const sweat = picks.filter((p) => p.game.status === 'live');
+    const sweat = picks.filter((p) => p.game?.status === 'live');
     const sweatHtml = sweat.length ? `<section class="card sweat"><h3>Sweating right now</h3>${sweat.map((p) => {
       const m = core.atsMargin(p.game, p.team);
       return `<div class="sweat-row">${chip(p.player)}<span class="marker">${h(teamName(p.team))}</span><span class="${m > 0 ? 'up' : m < 0 ? 'down' : ''}">${m > 0 ? 'covering by ' + m : m < 0 ? 'short by ' + -m : 'on the number'}</span></div>`;
@@ -321,9 +321,10 @@ function viewBoard(n) {
       ${slots.map((s) => {
         const games = pickedOnly && !dw.virtual ? s.games.filter((g) => Object.keys(g.picks || {}).length) : s.games;
         if (!games.length) return '';
-        const missing = dw.virtual ? [] : state.league.players.filter((p) => !s.games.some((g) => g.picks?.[p.id]));
+        const missed = dw.virtual ? [] : state.league.players.filter((p) => dw.week.missed?.[p.id]?.includes(s.label));
+        const missing = dw.virtual ? [] : state.league.players.filter((p) => !s.games.some((g) => g.picks?.[p.id]) && !missed.includes(p));
         return `<section class="slot">
-          <h2 class="slot-title"><span class="marker">${h(s.label)}</span>${missing.length && missing.length < state.league.players.length ? `<small>no pick: ${missing.map((p) => h(p.id)).join(' ')}</small>` : ''}</h2>
+          <h2 class="slot-title"><span class="marker">${h(s.label)}</span>${missing.length && missing.length < state.league.players.length ? `<small>no pick: ${missing.map((p) => h(p.id)).join(' ')}</small>` : ''}${missed.length ? `<small class="missed-note">missed (auto L): ${missed.map((p) => ink(p.id)).join('')}</small>` : ''}</h2>
           <div class="games">${games.map(gameCard).join('')}</div>
         </section>`;
       }).join('')}`;
@@ -649,7 +650,8 @@ function viewPlayer(id) {
   const row = a.standings.find((r) => r.player.id === id);
   const { nick, tags } = roast(a, id);
   const byWeek = {};
-  for (const pk of t.picks) (byWeek[pk.week] ??= []).push(pk);
+  for (const pk of [...t.picks, ...t.missed]) (byWeek[pk.week] ??= []).push(pk);
+  for (const w of Object.values(byWeek)) w.sort((x, y) => x.slotIndex - y.slotIndex);
   const bestSlot = Object.entries(t.bySlot).filter(([, r]) => r.W + r.L >= 2).sort((x, y) => y[1].pct - x[1].pct || y[1].W - x[1].W)[0];
   const others = state.league.players.filter((o) => o.id !== id);
   const twin = others.map((o) => ({ o, x: a.agree[id][o.id] })).filter((z) => z.x).sort((x, y) => y.x.pct - x.x.pct)[0];
@@ -728,6 +730,11 @@ function viewPlayer(id) {
         const r = core.record(byWeek[w]);
         return `<div class="pick-week"><h4><a href="#/board/${w}">Week ${w}</a> <small>${core.fmtRecord(r)}</small></h4>
           ${byWeek[w].map((pk) => {
+            if (pk.missed) {
+              return `<div class="pick-item missed"><span class="slot-tag">${h(pk.slot)}</span>
+                <span class="pick-main"><span class="marker">No pick</span><small>Forgot to text it in. Automatic loss.</small></span>
+                <span class="result L">L</span></div>`;
+            }
             const g = pk.game;
             const line = pk.isFav ? `-${pk.spread}` : pk.spread ? `+${pk.spread}` : 'PK';
             const res = pk.outcome || (g.status === 'live' ? 'live' : 'pending');

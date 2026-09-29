@@ -27,7 +27,9 @@ function crowdSize(picks, p) {
 }
 
 export function analyze(league) {
-  const picks = allPicks(league);
+  const every = allPicks(league);
+  // Missed picks count in records but aren't picks, so tendencies ignore them.
+  const picks = every.filter((p) => !p.missed);
   const players = league.players;
   const graded = picks.filter((p) => p.outcome);
   const n = players.length;
@@ -43,7 +45,8 @@ export function analyze(league) {
     const favTeam = Object.entries(teamCounts).sort((a, b) => b[1] - a[1])[0];
     perPlayer[pl.id] = {
       picks: mine,
-      total: record(mine),
+      missed: every.filter((p) => p.missed && p.player === pl.id),
+      total: record(every.filter((p) => p.player === pl.id)),
       favPct: share(mine.filter((p) => p.spread), (p) => p.isFav),
       homePct: share(mine, (p) => p.isHome),
       avgLine: avg(mine.map((p) => (p.isFav ? -p.spread : p.spread))),

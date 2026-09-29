@@ -544,3 +544,8 @@ body.sheet-open { overflow: hidden; }
 @media (min-width: 640px) { .sheet-backdrop { align-items: center; } .sheet { border-radius: 20px; } }
 @keyframes rise { from { transform: translateY(40px); opacity: 0; } }
 @keyframes fade { from { opacity: 0; } }
+.missed-note { color: var(--bad) !important; }
+.pick-item.missed .marker { color: var(--muted); }
+.admin-slot .slot-title { flex-wrap: wrap; }
+.miss-btn { margin-left: auto; font-family: var(--font); font-weight: 600; }
+.miss-btn.on { color: var(--bad); border-color: var(--bad); }
