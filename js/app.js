@@ -511,11 +511,13 @@ function setFocus(id) {
 const profileOf = (id) => acct.profiles[id] || {};
 const bioText = (p) => profileOf(p.id).bio ?? p.bio ?? '';
 
+// Uploaded photo, else the league caricature (inline SVG from the encrypted data), else the letter.
 function avatar(id, cls = 'pl-chip') {
   const photo = profileOf(id).photo;
-  return photo
-    ? `<img class="${cls} photo" src="${photo}" alt="${h(player(id)?.name)}" style="--pc:${pcolor(id)}">`
-    : `<span class="${cls}" style="background:${pcolor(id)}">${h(id)}</span>`;
+  if (photo) return `<img class="${cls} photo" src="${photo}" alt="${h(player(id)?.name)}" style="--pc:${pcolor(id)}">`;
+  const toon = player(id)?.avatar;
+  if (toon) return `<span class="${cls} toon" style="--pc:${pcolor(id)}" role="img" aria-label="${h(player(id)?.name)}">${toon}</span>`;
+  return `<span class="${cls}" style="background:${pcolor(id)}">${h(id)}</span>`;
 }
 
 function ago(iso) {

@@ -549,3 +549,10 @@ body.sheet-open { overflow: hidden; }
 .admin-slot .slot-title { flex-wrap: wrap; }
 .miss-btn { margin-left: auto; font-family: var(--font); font-weight: 600; }
 .miss-btn.on { color: var(--bad); border-color: var(--bad); }
+
+/* ---------- caricature avatars ---------- */
+.toon { background: #fff !important; overflow: hidden; box-shadow: 0 0 0 3px var(--pc); padding: 0; }
+.toon svg { display: block; width: 100%; height: 100%; }
+.pl-photo.toon { width: 104px; height: 104px; }
+.pl-card .pl-chip.toon { width: 58px; height: 58px; }
+.account-card .pl-chip.toon { width: 64px; height: 64px; }
