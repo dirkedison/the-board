@@ -337,6 +337,7 @@ function viewBoard(n) {
 }
 
 // ---------- STANDINGS ----------
+export const gamesText = (g) => (g === 0.5 ? 'half a game' : `${g} game${g === 1 ? '' : 's'}`);
 function netSeries(tl, id) {
   return tl.map((pt) => pt.snap[id].net);
 }
@@ -350,7 +351,7 @@ function viewStandings() {
   const tied = rows.filter((r) => r.net === leader.net);
   const lead = tied.length > 1
     ? `${tied.map((r) => h(r.player.name)).join(' & ')} tied for first`
-    : `${h(leader.player.name)} leads by ${second ? (leader.net - second.net) / 2 : 0} game${second && leader.net - second.net === 2 ? '' : 's'}`;
+    : `${h(leader.player.name)} leads by ${gamesText(second ? (leader.net - second.net) / 2 : 0)}`;
   return `<header class="view-head"><h1 class="marker">Standings</h1><p class="sub">${lead}</p></header>
     <ol class="standings">
       ${rows.map((r) => `<li>

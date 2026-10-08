@@ -35,6 +35,7 @@ function candidates(a, id) {
 
   const rules = [
     [soleLeader, 100, 'The Board Boss', '👑 Running the board'],
+    [row.rank === 2 && row.gb > 0 && row.gb <= 1, 85, 'First Loser', `${row.gb === 0.5 ? 'Half a game' : row.gb + ' game' + (row.gb === 1 ? '' : 's')} out of first. So close, so irrelevant.`],
     [soleLast && graded >= 5, 95, 'Bottom Feeder', '🗑️ Dead last. Embarrassing.'],
     [isLast && !soleLast && graded >= 5, 80, null, '🗑️ Tied for dead last'],
     [graded >= 6 && total.pct < 0.35, 90, 'The Human Fade Button', `Fading you is free money (${total.L}-${total.W})`],
@@ -65,7 +66,7 @@ function candidates(a, id) {
     [!!twin && twin.x.pct >= 0.6, 56, 'Copy Paste', twin && `${twin.name}'s shadow (${Math.round(twin.x.pct * 100)}% same picks)`],
     [!!loyalLoser, 61, null, loyalLoser && `Blind loyalty to the ${teamName(loyalLoser[0])} (${fmt(loyalLoser[1])})`],
     [!!moneyTeam, 44, null, moneyTeam && `Cashes on the ${teamName(moneyTeam[0])} (${fmt(moneyTeam[1])})`],
-    [total.P >= 2, 30, 'Push King', `${total.P} pushes. Can't even lose right.`],
+    [total.P >= 3, 30, 'Push King', `${total.P} pushes. Can't even lose right.`],
     [t.missed.length >= 1, 76, 'Asleep at the Wheel', `Forgot to pick ${t.missed.length === 1 ? 'once' : t.missed.length + ' times'}. Free L${t.missed.length === 1 ? '' : 's'}.`],
   ].filter((r) => r[0] && r[3]);
 
