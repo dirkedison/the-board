@@ -556,3 +556,12 @@ body.sheet-open { overflow: hidden; }
 .pl-photo.toon { width: 104px; height: 104px; }
 .pl-card .pl-chip.toon { width: 58px; height: 58px; }
 .account-card .pl-chip.toon { width: 64px; height: 64px; }
+
+/* ---------- disciplinary cards ---------- */
+.card-badge { font-size: .8rem; margin-left: 4px; vertical-align: 3px; cursor: help; }
+.card-note { color: var(--warn) !important; font-weight: 600; }
+.discipline { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: color-mix(in oklab, #f2c200 14%, var(--surface)); border: 1px solid color-mix(in oklab, #f2c200 45%, var(--line)); font-size: .9rem; }
+.discipline b { display: block; margin-bottom: 2px; }
+.discipline a { font-weight: 600; }
+.card-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.card-row .btn { margin-left: auto; }

@@ -32,6 +32,9 @@ function candidates(a, id) {
   const loyalLoser = teamEntries.filter(([, r]) => r.pct < 0.4).sort((x, y) => y[1].L - x[1].L)[0];
   const moneyTeam = teamEntries.filter(([, r]) => r.pct >= 0.75).sort((x, y) => y[1].W - x[1].W)[0];
   const luck = t.closeW - t.badBeats;
+  const cards = (a.cards || []).filter((c) => c.player === id);
+  // A fresh card headlines the week it's issued, then fades to a tag.
+  const latestWeek = Math.max(0, ...Object.entries(row.byWeek).filter(([, r]) => r.W + r.L + r.P).map(([w]) => Number(w)));
 
   const rules = [
     [soleLeader, 100, 'The Board Boss', '👑 Running the board'],
@@ -67,6 +70,8 @@ function candidates(a, id) {
     [!!loyalLoser, 61, null, loyalLoser && `Blind loyalty to the ${teamName(loyalLoser[0])} (${fmt(loyalLoser[1])})`],
     [!!moneyTeam, 44, null, moneyTeam && `Cashes on the ${teamName(moneyTeam[0])} (${fmt(moneyTeam[1])})`],
     [total.P >= 3, 30, 'Push King', `${total.P} pushes. Can't even lose right.`],
+    [cards.some((c) => c.color === 'red'), 92, 'Ejected', cards.find((c) => c.color === 'red') && `🟥 Red card, week ${cards.find((c) => c.color === 'red').week}`],
+    [cards.some((c) => c.color === 'yellow'), cards.some((c) => c.color === 'yellow' && c.week === latestWeek) ? 97 : 79, 'The Past Poster', cards.find((c) => c.color === 'yellow') && `🟨 Yellow card, week ${cards.find((c) => c.color === 'yellow').week}`],
     [t.missed.length >= 1, 76, 'Asleep at the Wheel', `Forgot to pick ${t.missed.length === 1 ? 'once' : t.missed.length + ' times'}. Free L${t.missed.length === 1 ? '' : 's'}.`],
   ].filter((r) => r[0] && r[3]);
 

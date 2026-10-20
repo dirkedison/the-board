@@ -216,6 +216,8 @@ function draw() {
       </section>`;
     }).join('')}` : `<p class="empty">No games for week ${A.week} yet. Load them from ESPN above.</p>`}
 
+    ${wk ? cardsSection(slots) : ''}
+
     <details class="card">
       <summary><h3>Player bios</h3></summary>
       <p class="hint">Shown on the Players page. Changes publish with everything else.</p>
@@ -268,6 +270,24 @@ function setMissed(pid, slot, on) {
   if (on) cur.add(slot); else cur.delete(slot);
   if (cur.size) wk.missed[pid] = [...cur]; else delete wk.missed[pid];
   if (!Object.keys(wk.missed).length) delete wk.missed;
+}
+
+// Disciplinary cards (yellow / red) for this week. Purely cosmetic: records are unaffected.
+function cardsSection(slots) {
+  const cards = (A.draft.cards || []).map((c, i) => ({ ...c, i })).filter((c) => c.week === A.week);
+  return `<details class="card" ${cards.length ? 'open' : ''}>
+    <summary><h3>Cards ${cards.length ? `<span class="ok-dot">${cards.length} this week</span>` : ''}</h3></summary>
+    <p class="hint">Yellow or red cards for rule-bending (late picks, etc.). Shown on the board, standings, and the player's page. They don't change records.</p>
+    ${cards.map((c) => `<div class="card-row">${c.color === 'red' ? '🟥' : '🟨'} <b>${h(player(c.player)?.name)}</b> · ${h(c.slot)} · ${h(c.reason)}
+      <button class="btn ghost sm danger" data-a="uncard" data-i="${c.i}">Remove</button></div>`).join('')}
+    <form id="card-form" class="form-grid">
+      <label>Player<select name="player">${A.draft.players.map((p) => `<option value="${p.id}">${h(p.name)}</option>`).join('')}</select></label>
+      <label>Card<select name="color"><option value="yellow">🟨 Yellow</option><option value="red">🟥 Red</option></select></label>
+      <label>Slot<select name="slot">${slots.map((s) => `<option>${h(s.label)}</option>`).join('')}</select></label>
+      <label class="wide">Reason<input name="reason" maxlength="140" required placeholder="Picked after kickoff"></label>
+      <button class="btn" type="submit">Issue card</button>
+    </form>
+  </details>`;
 }
 
 function missButton(s) {
@@ -332,6 +352,10 @@ async function onClick(e) {
       setMissed(A.sel, g.slot, false);
     }
     A.msg = '';
+    touch();
+  } else if (a === 'uncard') {
+    A.draft.cards.splice(Number(t.dataset.i), 1);
+    if (!A.draft.cards.length) delete A.draft.cards;
     touch();
   } else if (a === 'miss') {
     setMissed(A.sel, t.dataset.slot, !missedIn(t.dataset.slot).includes(A.sel));
@@ -422,6 +446,11 @@ function onSubmit(e) {
   if (e.target.id === 'gh-form') {
     saveGh(e.target);
     flash('Saved on this device.', 'ok');
+    draw();
+  } else if (e.target.id === 'card-form') {
+    (A.draft.cards ||= []).push({ player: f.get('player'), week: A.week, slot: f.get('slot'), color: f.get('color'), reason: f.get('reason').trim() });
+    touch();
+    flash('Card issued. Publish to make it official.', 'ok');
     draw();
   } else if (e.target.id === 'pw-form') {
     if (f.get('pw1') !== f.get('pw2')) { flash("Passwords don't match.", 'warn'); draw(); return; }

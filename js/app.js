@@ -26,6 +26,9 @@ export const h = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp
 const $ = (sel, root = document) => root.querySelector(sel);
 
 export const pcolor = (id) => `var(--p-${id})`;
+const CARD_ICON = { yellow: '🟨', red: '🟥' };
+const cardsWhere = (fn) => (state.league.cards || []).filter(fn);
+const cardBadges = (id) => cardsWhere((c) => c.player === id).map((c) => `<span class="card-badge" title="${h(`Week ${c.week}: ${c.reason}`)}">${CARD_ICON[c.color] || '🟨'}</span>`).join('');
 export const player = (id) => state.league.players.find((p) => p.id === id);
 export const ink = (id) => `<b class="ink" data-player="${h(id)}" style="color:${pcolor(id)}" title="${h(player(id)?.name)}">${h(id)}</b>`;
 export const chip = (id, cls = '') => `<span class="chip ${cls}" data-player="${h(id)}" style="background:${pcolor(id)}" title="${h(player(id)?.name)}">${h(id)}</span>`;
@@ -324,7 +327,7 @@ function viewBoard(n) {
         const missed = dw.virtual ? [] : state.league.players.filter((p) => dw.week.missed?.[p.id]?.includes(s.label));
         const missing = dw.virtual ? [] : state.league.players.filter((p) => !s.games.some((g) => g.picks?.[p.id]) && !missed.includes(p));
         return `<section class="slot">
-          <h2 class="slot-title"><span class="marker">${h(s.label)}</span>${missing.length && missing.length < state.league.players.length ? `<small>no pick: ${missing.map((p) => h(p.id)).join(' ')}</small>` : ''}${missed.length ? `<small class="missed-note">missed (auto L): ${missed.map((p) => ink(p.id)).join('')}</small>` : ''}</h2>
+          <h2 class="slot-title"><span class="marker">${h(s.label)}</span>${missing.length && missing.length < state.league.players.length ? `<small>no pick: ${missing.map((p) => h(p.id)).join(' ')}</small>` : ''}${missed.length ? `<small class="missed-note">missed (auto L): ${missed.map((p) => ink(p.id)).join('')}</small>` : ''}${cardsWhere((c) => c.week === dw.week.week && c.slot === s.label).map((c) => `<small class="card-note" title="${h(c.reason)}">${CARD_ICON[c.color] || '🟨'} ${ink(c.player)} ${h(c.reason)}</small>`).join('')}</h2>
           <div class="games">${games.map(gameCard).join('')}</div>
         </section>`;
       }).join('')}`;
@@ -357,7 +360,7 @@ function viewStandings() {
       ${rows.map((r) => `<li>
         <a href="#/player/${r.player.id}" class="st-row" style="--pc:${pcolor(r.player.id)}">
           <span class="rank">${r.rank}</span>
-          <span class="st-name"><span class="marker" style="color:var(--pc)">${h(r.player.name)}</span>
+          <span class="st-name"><span class="marker" style="color:var(--pc)">${h(r.player.name)}${cardBadges(r.player.id)}</span>
             <small>${r.pct == null ? '' : core.fmtPct(r.pct)} ${r.gb ? `· ${r.gb} GB` : ''} ${r.streak ? `· <span class="streak ${r.streak[0]}">${r.streak}</span>` : ''}</small></span>
           ${sparkline(netSeries(tl, r.player.id), pcolor(r.player.id))}
           <span class="st-rec">${core.fmtRecord(r, false)}${r.P ? `<small>${r.P}P</small>` : ''}</span>
@@ -669,6 +672,7 @@ function viewPlayer(id) {
       <p class="sub">#${row.rank} · ${core.fmtRecord(row)} · ${core.fmtPct(row.pct)}${row.gb ? ` · ${row.gb} GB` : ''}${row.streak ? ` · streak <span class="streak ${row.streak[0]}">${row.streak}</span>` : ''}</p>
       ${bioBlock(p, true)}
       ${editControls(p)}
+      ${cardsWhere((c) => c.player === id).length ? `<div class="discipline"><b>Disciplinary record</b>${cardsWhere((c) => c.player === id).map((c) => `<div>${CARD_ICON[c.color] || '🟨'} <a href="#/board/${c.week}">Week ${c.week}</a> · ${h(c.slot)} · ${h(c.reason)}</div>`).join('')}</div>` : ''}
       ${tagList(tags)}
     </header>
     <div class="tiles">

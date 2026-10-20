@@ -140,6 +140,7 @@ export function analyze(league) {
   }
 
   return {
+    cards: league.cards || [],
     picks, graded, perPlayer, agree, duels, teamRows, crowdRec, blowouts, beats, sweats, cats,
     timeline: tl, leadChanges: changes, slotsInFirst, standings: standings(league),
     overall: {
