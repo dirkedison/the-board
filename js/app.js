@@ -513,7 +513,12 @@ function setFocus(id) {
 
 // ---------- PLAYERS ----------
 const profileOf = (id) => acct.profiles[id] || {};
-const bioText = (p) => profileOf(p.id).bio ?? p.bio ?? '';
+// Newest bio wins: a friend's rewrite shows until the commissioner's next weekly bio (player.bioUpdated), and vice versa.
+const friendBioShown = (p) => {
+  const prof = profileOf(p.id);
+  return !!prof.bio && (!p.bio || !p.bioUpdated || new Date(prof.updated_at) > new Date(p.bioUpdated));
+};
+const bioText = (p) => (friendBioShown(p) ? profileOf(p.id).bio : p.bio ?? '');
 
 // Uploaded photo, else the league caricature (inline SVG from the encrypted data), else the letter.
 function avatar(id, cls = 'pl-chip') {
@@ -537,7 +542,10 @@ function bioBlock(p, withCredit = false) {
   const text = bioText(p);
   const bio = text ? `<p class="bio">${h(text)}</p>` : '';
   const prof = profileOf(p.id);
-  const credit = withCredit && prof.bio_by ? `<span class="credit">Bio by ${nameLink(prof.bio_by)} · ${ago(prof.updated_at)}${prof.photo_by ? ` · photo by ${nameLink(prof.photo_by)}` : ''}</span>` : '';
+  const parts = [];
+  if (withCredit && friendBioShown(p) && prof.bio_by) parts.push(`Bio by ${nameLink(prof.bio_by)} · ${ago(prof.updated_at)}`);
+  if (withCredit && prof.photo_by) parts.push(`photo by ${nameLink(prof.photo_by)}`);
+  const credit = parts.length ? `<span class="credit">${parts.join(' · ')}</span>` : '';
   return bio || team ? `<div class="bio-block">${bio}${credit}${team}</div>` : '';
 }
 

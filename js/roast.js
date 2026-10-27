@@ -36,8 +36,19 @@ function candidates(a, id) {
   // A fresh card headlines the week it's issued, then fades to a tag.
   const latestWeek = Math.max(0, ...Object.entries(row.byWeek).filter(([, r]) => r.W + r.L + r.P).map(([w]) => Number(w)));
 
+  // Was the sole leader after last week, isn't now.
+  const prevPoint = (a.timeline || []).filter((pt) => pt.week === latestWeek - 1).pop();
+  const dethroned = !!prevPoint && prevPoint.leaders.length === 1 && prevPoint.leaders[0] === id && row.rank !== 1;
+  // Holder of the single worst ATS loss of the season.
+  const worstPick = [...(a.graded || [])].filter((p) => p.margin != null).sort((x, y) => x.margin - y.margin)[0];
+  const ownsWorst = worstPick && worstPick.player === id && worstPick.margin <= -14;
+  const halfPoint = t.picks.filter((p) => p.outcome === 'W' && p.margin === 0.5).length;
+
   const rules = [
     [soleLeader, 100, 'The Board Boss', '👑 Running the board'],
+    [dethroned, 90, 'Dethroned', `Led after week ${latestWeek - 1}. Not anymore.`],
+    [ownsWorst, 74, 'The Disaster Artist', ownsWorst && `Owns the worst pick of the season: ${teamName(worstPick.team)}, lost the cover by ${-worstPick.margin}`],
+    [halfPoint >= 3, 66, 'The Half-Point Merchant', `${halfPoint} covers by exactly half a point`],
     [row.rank === 2 && row.gb > 0 && row.gb <= 1, 85, 'First Loser', `${row.gb === 0.5 ? 'Half a game' : row.gb + ' game' + (row.gb === 1 ? '' : 's')} out of first. So close, so irrelevant.`],
     [soleLast && graded >= 5, 95, 'Bottom Feeder', '🗑️ Dead last. Embarrassing.'],
     [isLast && !soleLast && graded >= 5, 80, null, '🗑️ Tied for dead last'],

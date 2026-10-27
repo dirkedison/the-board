@@ -58,6 +58,7 @@ Players sign in (person icon) to rewrite anyone's bio or photo **except their ow
 - Only signed-in league members can see bios and photos.
 - Nobody can write their own row.
 - Every overwrite is archived in `profile_history`.
+- Newest bio wins: a friend's rewrite shows until the commissioner's next bio update in the league data, and a friend's rewrite after that takes over again.
 
 **One-time setup:**
 1. Create a free project at [supabase.com](https://supabase.com).
