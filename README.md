@@ -73,6 +73,16 @@ Players sign in (person icon) to rewrite anyone's bio or photo **except their ow
 - Wrong person claimed a player: delete that row in `members`.
 - Undo a vandalized bio: copy the old text back from `profile_history`.
 
+## Bio tone
+
+Weekly bios follow the commissioner's rule. `node tools/bio-tone.mjs [week]` prints each player's tier (decrypt the data first):
+
+- **Nice:** winning record overall *and* a winning week.
+- **Mixed:** one of the two winning, half praise and half roast.
+- **Mean:** neither winning, or alone in last place.
+
+Exactly .500 doesn't count as winning.
+
 ## How the password protection works
 
 The site is static (GitHub Pages, free). League data is committed **only** as `data/league.enc.json`, encrypted with AES-256-GCM using a key derived from the league password (PBKDF2-SHA256, 310k iterations). Without the password the file is unreadable noise, even though the repo is public. The site's code is public, but the picks aren't.
